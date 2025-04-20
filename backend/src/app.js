@@ -1,12 +1,17 @@
-import express from "express";
 import dotenv from "dotenv";
+import express from "express";
+import { Db } from "../DB/Db.js";
+
+dotenv.config({ path: "../.env" });
 
 const app = express();
 
-dotenv.config({ parth: "../.env" });
+Db();
+
+app.use(express.static("public"));
 
 app.get("/", (req, res) => {
   res.send("hello");
 });
 
-app.listen(process.env.PORT);
+app.listen(process.env.PORT || 3000);
