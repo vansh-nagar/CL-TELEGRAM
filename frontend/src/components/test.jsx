@@ -15,10 +15,16 @@ const Test = () => {
       setrecivedMessage(msg);
     });
   }, []);
-  console.log(client.current);
 
   const handleSendmessage = () => {
     client.current.emit("message", first);
+  };
+
+  const Joinroom = () => {
+    client.current.emit("joinRoom", {
+      from: "vansh",
+      to: "saara",
+    });
   };
 
   return (
@@ -31,6 +37,7 @@ const Test = () => {
         }}
       />
       <button onClick={handleSendmessage}>send message</button>
+      <button onClick={Joinroom}>Join room</button>
     </div>
   );
 };

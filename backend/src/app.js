@@ -6,6 +6,8 @@ import router from "./routes/user.routes.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import { Socket } from "dgram";
 
 dotenv.config({ path: "../.env" });
 
@@ -24,6 +26,7 @@ const io = new Server(server, {
 app.use(urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.static("public"));
+app.use(cookieParser());
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -40,10 +43,28 @@ Db();
 //socket.io // socket/client contain client info
 io.on("connection", (client) => {
   console.log("user connected", client.id);
-  client.on("message", (message) => {
-    console.log("user message", message, client.id);
-    io.emit("message", message);
+
+  let roomId;
+  client.on("joinRoom", (message) => {
+    roomId = [message.from, message.to].sort().join("_");
+
+    io.to(roomId).emit("message", message.first);
+
+    if (client.rooms.has(roomId)) {
+      console.log("client already in room", roomId);
+      return;
+    }
+    client.join(roomId);
+    console.log("client joined room", roomId);
   });
+
+  client.on("message", (message) => {
+    io.to(roomId).emit("message", message);
+  });
+
+  io.send("hello from server");
 });
 
 server.listen(3000);
+
+export { io };
