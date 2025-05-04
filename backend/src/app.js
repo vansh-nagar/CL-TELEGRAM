@@ -7,7 +7,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { Socket } from "dgram";
+import { User } from "./models/user.models.js";
 
 dotenv.config({ path: "../.env" });
 
@@ -16,7 +16,7 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: process.env.frontendUri,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -29,7 +29,7 @@ app.use(express.static("public"));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.frontendUri,
     methods: ["GET", "POST"],
     credentials: true,
   })
@@ -44,27 +44,53 @@ Db();
 io.on("connection", (client) => {
   console.log("user connected", client.id);
 
-  let roomId;
-  client.on("joinRoom", (message) => {
-    roomId = [message.from, message.to].sort().join("_");
+  // send message
+  client.on("message", async (msg) => {
+    const roomId = [msg.to, msg.from].sort().join("_");
 
-    io.to(roomId).emit("message", message.first);
+    //finding to and from users
+    const user = await User.find({
+      $or: [{ username: msg.to }, { username: msg.from }],
+    });
 
-    if (client.rooms.has(roomId)) {
-      console.log("client already in room", roomId);
-      return;
+    //time
+    const now = new Date();
+    const time = now.toLocaleTimeString(); // Format: "15:30:45"
+
+    user.forEach(async (user) => {
+      await User.findByIdAndUpdate(user._id, {
+        $push: {
+          messages: {
+            message: msg.message,
+            sender: msg.from,
+            reciver: msg.to,
+            time: time,
+          },
+        },
+      });
+    });
+
+    console.log("message sent to database");
+    io.to(roomId).emit("message", msg.message, msg.from, msg.to);
+  });
+
+  // join room
+  client.on("joinroom", (msg) => {
+    const rooms = Array.from(client.rooms);
+    if (rooms[1] !== "") {
+      client.leave(rooms[1]);
     }
+
+    const roomId = [msg.to, msg.from].sort().join("_");
     client.join(roomId);
-    console.log("client joined room", roomId);
+    console.log("client connected to ", roomId);
   });
 
-  client.on("message", (message) => {
-    io.to(roomId).emit("message", message);
+  client.on("disconnect", () => {
+    console.log("user disconnected", client.id);
   });
-
-  io.send("hello from server");
 });
 
-server.listen(3000);
+server.listen(process.env.PORT);
 
 export { io };

@@ -54,9 +54,10 @@ const registerUser = asyncHandler(async (req, res) => {
   };
 
   res
-    .send(createdUser)
-    .cookies("refreshToken", refreshToken, options)
-    .cookies("accessToken", accessToken, options);
+    .status(201)
+    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .json(new ApiRespose(201, "user created successfully"));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -84,6 +85,10 @@ const loginUser = asyncHandler(async (req, res) => {
   findUser.accessToken = accessToken;
   await findUser.save();
 
+  const data = await User.findById(findUser._id).select(
+    "-password -chats -avatar"
+  );
+
   const options = {
     httpOnly: true,
     secure: true,
@@ -91,9 +96,10 @@ const loginUser = asyncHandler(async (req, res) => {
   };
 
   res
-    .send(findUser)
-    .cookies("refreshToken", refreshToken, options)
-    .cookies("accessToken", accessToken, options);
+    .status(201)
+    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .json(new ApiRespose(200, "user logedin succesfully", data));
 });
 
 export { registerUser, loginUser };

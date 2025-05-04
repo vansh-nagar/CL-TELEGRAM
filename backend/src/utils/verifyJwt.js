@@ -7,7 +7,8 @@ import { User } from "../models/user.models.js";
 const verifyJwt = asyncHandler(async (req, res, next) => {
   try {
     const token =
-      req.accessToken || req.header("Authorization")?.replace("Bearer ", ""); //.reaplace - js method replace particular string from a string
+      req.cookies.accessToken ||
+      req.header("Authorization")?.replace("Bearer ", ""); //.reaplace - js method replace particular string from a string
 
     if (!token) {
       throw new ApiError("Token not found", 401);

@@ -12,15 +12,14 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
-    avatar: {
-      type: String,
-      default:
-        "http://res.cloudinary.com/dz12pywzs/image/upload/v1745119245/u6i5ls7c8k9kabholrtp.png",
-    },
-    dob: {
-      type: Date,
-    },
-    chats: [{ type: mongoose.Schema.Types.ObjectId, ref: "Chat" }],
+    messages: [
+      {
+        message: String,
+        sender: String,
+        reciver: String,
+        time: String,
+      },
+    ],
     accessToken: {
       type: String,
     },
@@ -32,6 +31,7 @@ userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
     this.password = await bcrypt.hash(this.password, 10);
   }
+  next();
 });
 
 userSchema.methods.matchPassword = async function (password) {
