@@ -30,7 +30,6 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: process.env.frontendUri,
-    methods: ["GET", "POST"],
     credentials: true,
   })
 );
@@ -71,7 +70,11 @@ io.on("connection", (client) => {
     });
 
     console.log("message sent to database");
-    io.to(roomId).emit("message", msg.message, msg.from, msg.to);
+    io.to(roomId).emit("message", {
+      message: msg.message,
+      from: msg.from,
+      to: msg.to,
+    });
   });
 
   // join room

@@ -23,7 +23,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
 
   [username, password].some((field) => {
-    if (field.trim() === "") {
+    if (field?.trim() === "") {
       throw new ApiError("All fields are required", 400);
     }
   });
@@ -57,6 +57,7 @@ const registerUser = asyncHandler(async (req, res) => {
     .status(201)
     .cookie("refreshToken", refreshToken, options)
     .cookie("accessToken", accessToken, options)
+    .cookie("username", username, { secure: true, sameSite: "None" })
     .json(new ApiRespose(201, "user created successfully"));
 });
 
@@ -99,6 +100,8 @@ const loginUser = asyncHandler(async (req, res) => {
     .status(201)
     .cookie("refreshToken", refreshToken, options)
     .cookie("accessToken", accessToken, options)
+    .cookie("username", username, { secure: true, sameSite: "None" })
+
     .json(new ApiRespose(200, "user logedin succesfully", data));
 });
 
