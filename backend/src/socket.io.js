@@ -43,20 +43,22 @@ const setUpSocketIo = (server) => {
         message: msg.message,
       });
 
-      const isoTime = message.createdAt;
-      const date = new Date(isoTime);
+      // const isoTime = message.createdAt;
+      // const date = new Date(isoTime);
 
-      const formattedTime = date.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "numeric",
-        hour12: true,
-      });
+      // const formattedTime = date.toLocaleTimeString("en-US", {
+      //   hour: "numeric",
+      //   minute: "numeric",
+      //   hour12: true,
+      // });
+
+      console.log("message saved to db");
 
       io.to(roomId).emit("message", {
         message: msg.message,
         to: msg.to,
         from: senderId,
-        time: formattedTime,
+        time: message.createdAt,
       });
       console.log(`message sent to ${roomId}`);
     });
