@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { registerUser, loginUser } from "../controllers/user.controller.js";
 import { verifyJwt } from "../utils/verifyJwt.js";
-import { getUser } from "../controllers/getuser.controller.js";
+import { getUser, getContacts } from "../controllers/getuser.controller.js";
 import { upload } from "../middleware/multer.js";
 const router = Router();
 
@@ -11,6 +11,6 @@ router.route("/login").post(loginUser);
 
 //secrured routes
 router.route("/getUsers").get(getUser);
-route.route("/getcontact");
+router.route("/getcontact").get(verifyJwt, getContacts);
 
 export default router;

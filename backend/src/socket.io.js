@@ -1,5 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { User } from "./models/user.models.js";
+import { Message } from "./models/message.models.js";
 import jwt from "jsonwebtoken";
 import * as parseCookie from "cookie";
 import mongoose from "mongoose";
@@ -28,38 +29,36 @@ const setUpSocketIo = (server) => {
 
     const senderId = decodedCookie.id;
 
+    client.emit("myId", {
+      senderId,
+    });
+
     // send message
     client.on("message", async (msg) => {
-      const roomId = [msg.to, msg.from].sort().join("_");
+      const roomId = [msg.to, senderId].sort().join("_");
 
-      //finding to and from users
-      const user = await User.find({
-        $or: [{ username: msg.to }, { username: msg.from }],
+      const message = await Message.create({
+        sender: senderId,
+        receiver: msg.to,
+        message: msg.message,
       });
 
-      //time
-      const now = new Date();
-      const time = now.toLocaleTimeString(); // Format: "15:30:45"
+      const isoTime = message.createdAt;
+      const date = new Date(isoTime);
 
-      user.forEach(async (user) => {
-        await User.findByIdAndUpdate(user._id, {
-          $push: {
-            messages: {
-              message: msg.message,
-              sender: msg.from,
-              reciver: msg.to,
-              time: time,
-            },
-          },
-        });
+      const formattedTime = date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "numeric",
+        hour12: true,
       });
 
-      console.log("message sent to database");
       io.to(roomId).emit("message", {
         message: msg.message,
-        from: msg.from,
         to: msg.to,
+        from: senderId,
+        time: formattedTime,
       });
+      console.log(`message sent to ${roomId}`);
     });
 
     // join room
@@ -132,6 +131,7 @@ const setUpSocketIo = (server) => {
         }
       }
 
+      client.join(roomId);
       client.emit("joinedRoomAck", {
         roomId,
       });

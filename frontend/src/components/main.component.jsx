@@ -13,32 +13,54 @@ import {
 
 const Main = () => {
   const [message, setmessage] = useState("");
+  const [from, setfrom] = useState("");
   const [to, setto] = useState("");
+  const [reciverUserName, setreciverUserName] = useState("");
   const [messageArr, setmessageArr] = useState([]);
   const [SeacrchedUser, setSeacrchedUser] = useState([]);
   const [HideSearchedUser, setHideSearchedUser] = useState(false);
+  const [Contacts, setContacts] = useState([]);
+  const [HideContact, setHideContact] = useState(true);
 
   const InputBox = useRef(null);
-
+  const backendUri = import.meta.env.VITE_BACKEND_SOCKET;
   let socket = useRef();
+
   useEffect(() => {
     socket.current = io.connect(backendUri, {
       withCredentials: true,
     });
 
+    socket.current.on("myId", (msg) => {
+      setfrom(msg.senderId);
+    });
+
     socket.current.on("message", (msg) => {
+      console.log("message recived");
       setmessageArr((prev) => [
         ...prev,
         {
           message: msg.message,
           to: msg.to,
+          from: msg.from,
+          time: msg.time,
         },
       ]);
+      console.log(messageArr);
     });
-    console.log(messageArr);
-  }, []);
 
-  const backendUri = import.meta.env.VITE_BACKEND_SOCKET;
+    //get contact
+    axios
+      .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getcontact`, {
+        withCredentials: true,
+      })
+      .then((res) => {
+        setContacts(res.data);
+      })
+      .catch((err) => {
+        console.log(err.message);
+      });
+  }, []);
 
   //connects to server and listen for message
 
@@ -66,10 +88,11 @@ const Main = () => {
     });
   };
 
+  // get search users
   const GetUsers = (e) => {
     setHideSearchedUser(true);
+    setHideContact(false);
     const Inputparams = e.target.value;
-    console.log(Inputparams);
     axios
       .get(
         `${import.meta.env.VITE_BAKCEND_BASEURL}/getUsers`,
@@ -81,7 +104,6 @@ const Main = () => {
         }
       )
       .then((res) => {
-        console.log(res.data);
         setSeacrchedUser(res.data.data);
       })
       .catch((err) => {
@@ -109,6 +131,7 @@ const Main = () => {
               onClick={() => {
                 InputBox.current.value = "";
                 setHideSearchedUser(false);
+                setHideContact(true);
               }}
             />
           </div>
@@ -122,6 +145,10 @@ const Main = () => {
                     className="cursor-pointer flex  items-center justify-between p-[10px] "
                     onClick={() => {
                       setto(user._id);
+                      setreciverUserName(user.username);
+                      setHideSearchedUser(false);
+                      setHideContact(true);
+                      InputBox.current.value = "";
                     }}
                   >
                     <div className=" flex  items-center gap-3">
@@ -140,14 +167,44 @@ const Main = () => {
                   </div>
                 );
               })
-            : console.log("hidden")}
+            : ""}
+        </div>
+        <div>
+          {HideContact
+            ? Contacts.map((user, index) => {
+                return (
+                  <div
+                    key={index}
+                    className="cursor-pointer flex  items-center justify-between p-[10px] "
+                    onClick={() => {
+                      setto(user.contact._id);
+                      setreciverUserName(user.contact.username);
+                    }}
+                  >
+                    <div className=" flex  items-center gap-3">
+                      <div>
+                        <img
+                          src={user.contact.avatar}
+                          alt=""
+                          className="rounded-full w-[45px] h-[45px]  object-cover"
+                        />
+                      </div>
+                      <div className="text-sm">
+                        <div>{user.contact.username} </div>
+                      </div>
+                    </div>
+                    <div></div>
+                  </div>
+                );
+              })
+            : ""}
         </div>
       </div>
 
       <div className=" flex-col w-3/4 h-screen backgroundColor">
         <div className=" text-white flex justify-between mx-4 h-14">
           <div className="flex flex-col justify-center items-start">
-            <div>{to}</div>
+            <div>{reciverUserName}</div>
             <div className="text-gray-500 text-sm ">last seen time</div>
           </div>
           <div className="flex justify-center items-center gap-4">
@@ -163,10 +220,13 @@ const Main = () => {
               return (
                 <div className=" flex justify-end">
                   <div
-                    className="senderMessageColor rounded-full py-1 px-3"
+                    className="senderMessageColor flex flex-row gap-2 rounded-full py-1 px-3 m-[1.1px]"
                     key={index}
                   >
-                    {msg.message}
+                    <div>{msg.message}</div>
+                    <div className="senderTimerColor text-[13px] translate-y-1.5">
+                      {msg.time}
+                    </div>
                   </div>
                 </div>
               );
@@ -174,10 +234,13 @@ const Main = () => {
               return (
                 <div className="flex justify-start">
                   <div
-                    className="reciverColor  rounded-full py-1 px-3 "
+                    className="reciverColor flex flex-row gap-2 rounded-full py-1 px-3 m-[1.1px]"
                     key={index}
                   >
-                    {msg.message}
+                    <div>{msg.message}</div>
+                    <div className="RecivertimerColor text-[13px] translate-y-1.5">
+                      {msg.time}
+                    </div>
                   </div>
                 </div>
               );
@@ -185,19 +248,25 @@ const Main = () => {
           })}
         </div>
 
-        <form className="flex flex-row justify-between h-[50px] pr-6 text-white">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault(); // ✅ this stops the reload
+            sendMessage();
+            setmessage("");
+          }}
+          className="flex flex-row justify-between h-[50px] pr-6 text-white"
+        >
           <input
             type="text"
             className="w-[90%] backgroundColor mx-4 focus:outline-none focus:border-none"
             placeholder="write a message... "
+            value={message}
             onChange={(e) => {
               setmessage(e.target.value);
             }}
           />
 
-          <button onClick={sendMessage} className="">
-            send
-          </button>
+          <button>send</button>
         </form>
       </div>
     </div>

@@ -14,7 +14,7 @@ const verifyJwt = asyncHandler(async (req, res, next) => {
       throw new ApiError("Token not found", 401);
     }
 
-    const decoded = jwt.verify(token, process.env.refreshTokenSecret);
+    const decoded = jwt.verify(token, process.env.accessTokenSecret);
 
     const findUser = await User.findById(decoded.id).select(
       "-password  -createdAt -updatedAt"
