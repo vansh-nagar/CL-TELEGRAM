@@ -6,18 +6,34 @@ const userSchema = mongoose.Schema(
   {
     username: {
       type: String,
+      lowercase: true,
       required: true,
     },
     password: {
       type: String,
       required: true,
     },
-    messages: [
+    bio: {
+      type: String,
+      default: "Hello, I am using this app",
+    },
+    Dob: {
+      type: Date,
+    },
+    avatar: { type: String },
+    contact: [
       {
-        message: String,
-        sender: String,
-        reciver: String,
-        time: String,
+        contactId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        lastseen: {
+          type: String,
+        },
+        notification: {
+          type: Boolean,
+          default: true,
+        },
       },
     ],
     accessToken: {

@@ -2,51 +2,40 @@ import React, { use, useDebugValue } from "react";
 import { useState, useRef, useEffect } from "react";
 import io from "socket.io-client";
 import axios from "axios";
+import {
+  RiMenuLine,
+  RiSearchLine,
+  RiPhoneFill,
+  RiSideBarLine,
+  RiMore2Fill,
+  RiCloseFill,
+} from "@remixicon/react";
 
 const Main = () => {
   const [message, setmessage] = useState("");
   const [to, setto] = useState("");
-  const [getUsers, setgetUsers] = useState([]);
-  const [from, setfrom] = useState("");
   const [messageArr, setmessageArr] = useState([]);
+  const [SeacrchedUser, setSeacrchedUser] = useState([]);
+  const [HideSearchedUser, setHideSearchedUser] = useState(false);
+
+  const InputBox = useRef(null);
 
   let socket = useRef();
   useEffect(() => {
-    socket.current = io.connect(backendUri);
-    socket.current.on("message", (msg) => {
-      console.log(`message from ${msg.from}`, msg);
-
-      console.log(messageArr);
-
-      messageArr.push({
-        message: msg.message,
-        from: msg.from,
-        to: msg.to,
-      });
+    socket.current = io.connect(backendUri, {
+      withCredentials: true,
     });
 
-    const cookies = document.cookie
-      .split(";")
-      .map((cookie) => {
-        return cookie.split("=");
-      })
-      .reduce(
-        (accumulator, [key, value]) => ({
-          ...accumulator,
-          [key.trim()]: decodeURIComponent(value),
-        }),
-        {}
-      );
-    setfrom(cookies.username);
-
-    axios
-      .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getUsers`)
-      .then((res) => {
-        setgetUsers(res.data.data);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+    socket.current.on("message", (msg) => {
+      setmessageArr((prev) => [
+        ...prev,
+        {
+          message: msg.message,
+          to: msg.to,
+        },
+      ]);
+    });
+    console.log(messageArr);
   }, []);
 
   const backendUri = import.meta.env.VITE_BACKEND_SOCKET;
@@ -60,9 +49,8 @@ const Main = () => {
     }
 
     socket.current.emit("joinroom", {
-      from,
       to,
-      message: "hello",
+      message: `joined`,
     });
   }, [to]);
 
@@ -73,52 +61,135 @@ const Main = () => {
     }
 
     socket.current.emit("message", {
-      from,
       to,
       message,
     });
   };
 
+  const GetUsers = (e) => {
+    setHideSearchedUser(true);
+    const Inputparams = e.target.value;
+    console.log(Inputparams);
+    axios
+      .get(
+        `${import.meta.env.VITE_BAKCEND_BASEURL}/getUsers`,
+        {
+          params: { input: Inputparams },
+        },
+        {
+          withCredentials: true,
+        }
+      )
+      .then((res) => {
+        console.log(res.data);
+        setSeacrchedUser(res.data.data);
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  };
+
   return (
     <div className="flex flex-row bg-gray-500">
-      <div className="inboxUsers w-1/4 h-screen bg-neutral-700 text-white">
+      <div className="inboxUsers  h-screen backgroundColor text-white max-md:hidden  border-r border-black">
+        <div className="flex gap-5 justify-between items-center mx-6 my-3">
+          <RiMenuLine className=" w-10 text-gray-500" />
+          <div className="relative  w-80 min-w-8">
+            <input
+              className="textBoxColor text-white w-full h-9 rounded-full pl-3 text-sm  focus:border-none focus:outline-none"
+              type="text"
+              ref={InputBox}
+              placeholder="Search"
+              onChange={(e) => {
+                GetUsers(e);
+              }}
+            />
+            <RiCloseFill
+              className="absolute top-1/2 right-2  -translate-y-1/2 text-gray-500 cursor-pointer hover:text-gray-300 "
+              onClick={() => {
+                InputBox.current.value = "";
+                setHideSearchedUser(false);
+              }}
+            />
+          </div>
+        </div>
         <div>
-          {getUsers.map((user, index) => {
-            if (user === from) {
-              user = "Saved Messages";
-            }
-            return (
-              <div
-                key={index}
-                className="cursor-pointer"
-                onClick={(e) => {
-                  setto(e.target.textContent);
-                }}
-              >
-                {user}
-              </div>
-            );
-          })}
+          {HideSearchedUser
+            ? SeacrchedUser.map((user, index) => {
+                return (
+                  <div
+                    key={index}
+                    className="cursor-pointer flex  items-center justify-between p-[10px] "
+                    onClick={() => {
+                      setto(user._id);
+                    }}
+                  >
+                    <div className=" flex  items-center gap-3">
+                      <div>
+                        <img
+                          src={user.avatar}
+                          alt=""
+                          className="rounded-full w-[45px] h-[45px]  object-cover"
+                        />
+                      </div>
+                      <div className="text-sm">
+                        <div>{user.username} </div>
+                      </div>
+                    </div>
+                    <div></div>
+                  </div>
+                );
+              })
+            : console.log("hidden")}
         </div>
       </div>
 
-      <div className=" flex-col w-3/4 h-screen">
-        <div className="bg-red-300 h-[calc(100%-40px)]">
+      <div className=" flex-col w-3/4 h-screen backgroundColor">
+        <div className=" text-white flex justify-between mx-4 h-14">
+          <div className="flex flex-col justify-center items-start">
+            <div>{to}</div>
+            <div className="text-gray-500 text-sm ">last seen time</div>
+          </div>
+          <div className="flex justify-center items-center gap-4">
+            <RiSearchLine />
+            <RiPhoneFill />
+            <RiSideBarLine />
+            <RiMore2Fill />
+          </div>
+        </div>
+        <div className="textBoxColor flex flex-col  text-white h-[calc(100%-50px-56px)] px-3">
           {messageArr.map((msg, index) => {
-            if (message.from === from) {
-              return <div key={index}>{msg.message}</div>;
+            if (msg.from === from) {
+              return (
+                <div className=" flex justify-end">
+                  <div
+                    className="senderMessageColor rounded-full py-1 px-3"
+                    key={index}
+                  >
+                    {msg.message}
+                  </div>
+                </div>
+              );
             } else {
-              return <div key={index}>{msg.message}</div>;
+              return (
+                <div className="flex justify-start">
+                  <div
+                    className="reciverColor  rounded-full py-1 px-3 "
+                    key={index}
+                  >
+                    {msg.message}
+                  </div>
+                </div>
+              );
             }
           })}
         </div>
-        <div
-          className="flex flex-row justify-between h-[40px] pr-6
-        "
-        >
+
+        <form className="flex flex-row justify-between h-[50px] pr-6 text-white">
           <input
             type="text"
-            className="w-[90%]"
+            className="w-[90%] backgroundColor mx-4 focus:outline-none focus:border-none"
+            placeholder="write a message... "
             onChange={(e) => {
               setmessage(e.target.value);
             }}
@@ -127,7 +198,7 @@ const Main = () => {
           <button onClick={sendMessage} className="">
             send
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { asyncHandler } from "../utils/async.handler.js";
 import { ApiRespose } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/user.models.js";
+import { uploadTOCloudinary } from "../utils/uploadToCloudinary.js";
 
 const generateTokens = async (user) => {
   if (!user) {
@@ -22,7 +23,13 @@ const generateTokens = async (user) => {
 const registerUser = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
 
-  [username, password].some((field) => {
+  const avatarUrl = await uploadTOCloudinary(req.file.path);
+
+  if (!avatarUrl) {
+    throw new ApiError("Image not uploaded", 400);
+  }
+
+  [(username, password)].some((field) => {
     if (field?.trim() === "") {
       throw new ApiError("All fields are required", 400);
     }
@@ -36,6 +43,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const createdUser = await User.create({
     username,
     password,
+    avatar: avatarUrl.url,
   });
 
   if (!createdUser) {
@@ -57,7 +65,7 @@ const registerUser = asyncHandler(async (req, res) => {
     .status(201)
     .cookie("refreshToken", refreshToken, options)
     .cookie("accessToken", accessToken, options)
-    .cookie("username", username, { secure: true, sameSite: "None" })
+    .cookie("Id", createdUser._id, { secure: true, sameSite: "None" })
     .json(new ApiRespose(201, "user created successfully"));
 });
 
@@ -87,7 +95,7 @@ const loginUser = asyncHandler(async (req, res) => {
   await findUser.save();
 
   const data = await User.findById(findUser._id).select(
-    "-password -chats -avatar"
+    "-password -chats -avatar -bio -contact -createdAt -updatedAt "
   );
 
   const options = {
@@ -100,7 +108,7 @@ const loginUser = asyncHandler(async (req, res) => {
     .status(201)
     .cookie("refreshToken", refreshToken, options)
     .cookie("accessToken", accessToken, options)
-    .cookie("username", username, { secure: true, sameSite: "None" })
+    .cookie("Id", findUser._id, { secure: true, sameSite: "None" })
 
     .json(new ApiRespose(200, "user logedin succesfully", data));
 });

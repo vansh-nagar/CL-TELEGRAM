@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.backgroundColor {
+  background-color: #17212b;
+}
+
+.textBoxColor {
+  background-color: #242f3d;
+}
+
+.senderMessageColor {
+  background-color: #287a9a;
+}
+.reciverColor {
+  background-color: #2a3038;
+}
