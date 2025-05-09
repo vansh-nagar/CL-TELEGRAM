@@ -22,10 +22,36 @@ const Main = () => {
   const [Contacts, setContacts] = useState([]);
   const [HideContact, setHideContact] = useState(true);
   const [HideMessages, setHideMessages] = useState(false);
+  const [toStatus, settoStatus] = useState("");
 
   const InputBox = useRef(null);
   const backendUri = import.meta.env.VITE_BACKEND_SOCKET;
   let socket = useRef();
+
+  useEffect(() => {
+    if (!to) return;
+
+    const intervalId = setInterval(() => {
+      axios
+        .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getUserStatus`, {
+          params: { to },
+          withCredentials: true,
+        })
+        .then((res) => {
+          console.log(res.data.isOnline);
+          if (res.data.isOnline) {
+            settoStatus("online");
+          } else {
+            settoStatus(res.data.lastSeen);
+          }
+        })
+        .catch((err) => {
+          console.log(err.message);
+        });
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [to]);
 
   useEffect(() => {
     socket.current = io.connect(backendUri, {
@@ -49,6 +75,21 @@ const Main = () => {
       console.log(msg);
     });
 
+    console.log(to);
+
+    socket.current.on("joinedRoomAck", () => {
+      axios
+        .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getcontact`, {
+          withCredentials: true,
+        })
+        .then((res) => {
+          setContacts(res.data);
+        })
+        .catch((err) => {
+          console.log(err.message);
+        });
+    });
+
     //get contact
     axios
       .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getcontact`, {
@@ -62,24 +103,19 @@ const Main = () => {
       });
   }, []);
 
-  //connects to server and listen for message
-
-  // join room
   useEffect(() => {
     if (!to) {
       return;
     }
 
-    console.log("onworks");
-
     //get messages
+
     axios
       .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getMessages`, {
         params: { sender: from, receiver: to },
         withCredentials: true,
       })
       .then((res) => {
-        console.log(res.data);
         setmessageArr(res.data);
       })
       .catch((err) => {
@@ -90,8 +126,6 @@ const Main = () => {
       to,
       message: `joined`,
     });
-
-    //get messages
   }, [to]);
 
   //send message
@@ -230,7 +264,9 @@ const Main = () => {
           <div className=" text-white flex justify-between mx-4 h-14">
             <div className="flex flex-col justify-center items-start">
               <div>{reciverUserName}</div>
-              <div className="text-gray-500 text-sm ">last seen time</div>
+              <div className="text-gray-500 text-sm ">
+                last seen <span>{toStatus}</span>
+              </div>
             </div>
             <div className="flex justify-center items-center gap-4">
               <RiSearchLine />
@@ -239,7 +275,7 @@ const Main = () => {
               <RiMore2Fill />
             </div>
           </div>
-          <div className="textBoxColor flex flex-col  text-white h-[calc(100%-50px-56px)] px-3 overflow-y-auto scroll-auto">
+          <div className="textBoxColor flex flex-col  text-white h-[calc(100%-50px-56px)] px-3 overflow-y-auto scroll-auto p-2">
             {messageArr.map((msg, index) => {
               if (msg.sender === from) {
                 return (

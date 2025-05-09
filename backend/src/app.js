@@ -7,6 +7,7 @@ import { createServer } from "http";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { setUpSocketIo } from "./socket.io.js";
+import redis from "redis";
 
 dotenv.config({ path: "../.env" });
 
@@ -14,6 +15,12 @@ dotenv.config({ path: "../.env" });
 const app = express();
 const server = createServer(app);
 setUpSocketIo(server);
+const redisClient = redis
+  .createClient()
+  .on("error", (error) => console.log(error));
+
+await redisClient.connect();
+console.log("✅ Redis connected");
 
 //middlewares
 app.use(express.json());
@@ -34,3 +41,4 @@ app.use("/api/v1/users", router);
 Db();
 
 server.listen(process.env.PORT);
+export { redisClient };

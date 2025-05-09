@@ -1,9 +1,12 @@
 import { Server, Socket } from "socket.io";
 import { User } from "./models/user.models.js";
+import { Status } from "./models/user.status.models.js";
 import { Message } from "./models/message.models.js";
 import jwt from "jsonwebtoken";
 import * as parseCookie from "cookie";
 import mongoose from "mongoose";
+
+import { redisClient } from "./app.js";
 
 const setUpSocketIo = (server) => {
   const io = new Server(server, {
@@ -15,7 +18,7 @@ const setUpSocketIo = (server) => {
     },
   });
 
-  io.on("connection", (client) => {
+  io.on("connection", async (client) => {
     console.log("user connected", client.id);
 
     const cookie = client.handshake.headers.cookie;
@@ -32,6 +35,19 @@ const setUpSocketIo = (server) => {
     client.emit("myId", {
       senderId,
     });
+
+    const status = await Status.findOne({ userId: senderId });
+
+    if (status) {
+      console.log("updated client status");
+      status.isOnline = true;
+      await status.save();
+    } else {
+      const createStatus = await Status.create({
+        userId: senderId,
+        isOnline: true,
+      });
+    }
 
     // send message
     client.on("message", async (msg) => {
@@ -74,6 +90,7 @@ const setUpSocketIo = (server) => {
 
       //cheak if person is in contact
       const cheakContactExists = await User.findById(senderId);
+      let updatedSender;
 
       if (cheakContactExists?.contact?.length === 0) {
         const updateReciver = await User.findByIdAndUpdate(
@@ -86,7 +103,7 @@ const setUpSocketIo = (server) => {
             },
           }
         );
-        const updatedSender = await User.findByIdAndUpdate(
+        updatedSender = await User.findByIdAndUpdate(
           { _id: senderId },
           {
             $push: {
@@ -97,6 +114,8 @@ const setUpSocketIo = (server) => {
           }
         );
         console.log(`added to contacts`);
+
+        console.log(updatedSender.contact);
       } else {
         const toObjectId = new mongoose.Types.ObjectId(msg.to);
         if (
@@ -119,7 +138,7 @@ const setUpSocketIo = (server) => {
               },
             }
           );
-          const updatedSender = await User.findByIdAndUpdate(
+          updatedSender = await User.findByIdAndUpdate(
             { _id: senderId },
             {
               $push: {
@@ -129,7 +148,6 @@ const setUpSocketIo = (server) => {
               },
             }
           );
-          console.log("contact added via cheaking");
         }
       }
 
@@ -140,8 +158,18 @@ const setUpSocketIo = (server) => {
       console.log("client connected to ", roomId);
     });
 
-    client.on("disconnect", () => {
+    client.on("disconnect", async () => {
       console.log("user disconnected", client.id);
+
+      const clientStatus = await Status.findOneAndUpdate(
+        {
+          userId: senderId,
+        },
+        { lastSeen: Date.now(), isOnline: false },
+        {
+          new: true,
+        }
+      );
     });
   });
 };

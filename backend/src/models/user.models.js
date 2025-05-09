@@ -27,8 +27,9 @@ const userSchema = mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
         },
-        lastseen: {
-          type: String,
+        status: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Status",
         },
         notification: {
           type: Boolean,

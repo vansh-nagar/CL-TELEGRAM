@@ -4,6 +4,7 @@ import { verifyJwt } from "../utils/verifyJwt.js";
 import { getUser, getContacts } from "../controllers/getuser.controller.js";
 import { upload } from "../middleware/multer.js";
 import { getMessages } from "../controllers/getmessages.controller.js";
+import { getUserStatus } from "../controllers/getstatus.controller.js";
 const router = Router();
 
 // unsecured routes
@@ -14,5 +15,6 @@ router.route("/login").post(loginUser);
 router.route("/getUsers").get(getUser);
 router.route("/getcontact").get(verifyJwt, getContacts);
 router.route("/getMessages").get(verifyJwt, getMessages);
+router.route("/getUserStatus").get(verifyJwt, getUserStatus);
 
 export default router;
