@@ -351,11 +351,6 @@ const Main = () => {
                   </div>
                 );
               }
-              messagesEndRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-                inline: "nearest",
-              });
             })}
             <div ref={messagesEndRef} className="mt-7"></div>
           </div>

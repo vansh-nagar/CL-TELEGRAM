@@ -6,8 +6,6 @@ import jwt from "jsonwebtoken";
 import * as parseCookie from "cookie";
 import mongoose from "mongoose";
 
-import { redisClient } from "./app.js";
-
 const setUpSocketIo = (server) => {
   const io = new Server(server, {
     cookie: true,

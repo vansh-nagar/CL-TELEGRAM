@@ -15,12 +15,12 @@ dotenv.config({ path: "../.env" });
 const app = express();
 const server = createServer(app);
 setUpSocketIo(server);
-const redisClient = redis
-  .createClient()
-  .on("error", (error) => console.log(error));
+// const redisClient = redis
+//   .createClient()
+//   .on("error", (error) => console.log(error));
 
-await redisClient.connect();
-console.log("✅ Redis connected");
+// await redisClient.connect();
+// console.log("✅ Redis connected");
 
 //middlewares
 app.use(express.json());
@@ -41,4 +41,4 @@ app.use("/api/v1/users", router);
 Db();
 
 server.listen(process.env.PORT);
-export { redisClient };
+// export { redisClient };
