@@ -10,10 +10,7 @@ const getMessages = asyncHandler(async (req, res) => {
       { sender, receiver },
       { sender: receiver, receiver: sender },
     ],
-  })
-    .sort({ createdAt: -1 })
-    .limit(10)
-    .sort({ createdAt: 1 });
+  }).sort({ createdAt: 1 });
 
   res.send(foundMessage);
 });

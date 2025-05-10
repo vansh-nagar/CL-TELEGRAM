@@ -28,6 +28,8 @@ const Main = () => {
   const InputBox = useRef(null);
   const backendUri = import.meta.env.VITE_BACKEND_SOCKET;
   let socket = useRef();
+  const messagesEndRef = useRef(null);
+  const imputBoxRef = useRef(null);
 
   useEffect(() => {
     if (!to) return;
@@ -98,6 +100,12 @@ const Main = () => {
         },
       ]);
       console.log(msg);
+
+      messagesEndRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+        inline: "nearest",
+      });
     });
 
     console.log(to);
@@ -151,6 +159,8 @@ const Main = () => {
       to,
       message: `joined`,
     });
+
+    imputBoxRef.current?.focus();
   }, [to]);
 
   const canEmitRef = useRef(true);
@@ -341,7 +351,13 @@ const Main = () => {
                   </div>
                 );
               }
+              messagesEndRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+                inline: "nearest",
+              });
             })}
+            <div ref={messagesEndRef} className="mt-7"></div>
           </div>
 
           <form
@@ -358,6 +374,7 @@ const Main = () => {
               className="w-[90%] backgroundColor mx-4 focus:outline-none focus:border-none"
               placeholder="write a message... "
               value={message}
+              ref={imputBoxRef}
               onChange={(e) => {
                 setmessage(e.target.value);
                 setisTyping(true);
