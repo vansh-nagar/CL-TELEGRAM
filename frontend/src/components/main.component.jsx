@@ -23,6 +23,7 @@ const Main = () => {
   const [HideContact, setHideContact] = useState(true);
   const [HideMessages, setHideMessages] = useState(false);
   const [toStatus, settoStatus] = useState("");
+  const [isTyping, setisTyping] = useState(false);
 
   const InputBox = useRef(null);
   const backendUri = import.meta.env.VITE_BACKEND_SOCKET;
@@ -31,6 +32,7 @@ const Main = () => {
   useEffect(() => {
     if (!to) return;
 
+    //get status in every 2 sec
     const intervalId = setInterval(() => {
       axios
         .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getUserStatus`, {
@@ -39,16 +41,39 @@ const Main = () => {
         })
         .then((res) => {
           console.log(res.data.isOnline);
-          if (res.data.isOnline) {
-            settoStatus("online");
+          if (res.data.isWriting || res.data.isOnline) {
+            settoStatus(res.data.isWriting ? "typing...." : "online");
           } else {
-            settoStatus(res.data.lastSeen);
+            const time = new Date(res.data.lastSeen).getTime();
+            const currentTime = Date.now();
+
+            const difference = currentTime - time;
+            const differenceInMin = difference / 1000 / 60;
+            const differenceInHour = differenceInMin / 60;
+
+            console.log(time);
+
+            if (!time) {
+              return settoStatus("last seen a long time ago");
+            }
+
+            if (differenceInHour >= 1) {
+              settoStatus(
+                `last seen ${Math.floor(differenceInHour)} hours ago`
+              );
+            } else if (differenceInMin > 1) {
+              settoStatus(
+                `last seen ${Math.floor(differenceInMin)} minutes ago`
+              );
+            } else {
+              settoStatus("last seen just now");
+            }
           }
         })
         .catch((err) => {
           console.log(err.message);
         });
-    }, 2000);
+    }, 1000);
 
     return () => clearInterval(intervalId);
   }, [to]);
@@ -127,6 +152,22 @@ const Main = () => {
       message: `joined`,
     });
   }, [to]);
+
+  const canEmitRef = useRef(true);
+
+  useEffect(() => {
+    if (isTyping) {
+      socket.current.emit("isTyping");
+    } else {
+      socket.current.emit("notTyping");
+    }
+  }, [isTyping]);
+
+  const inputIsEmptyUpdateStaus = (e) => {
+    if (e.target.value === "") {
+      setisTyping(false);
+    }
+  };
 
   //send message
   const sendMessage = () => {
@@ -260,12 +301,12 @@ const Main = () => {
       </div>
 
       {HideMessages ? (
-        <div className=" flex-col w-3/4 h-screen backgroundColor">
+        <div className=" flex-col w-3/4 max-sm:w-full max-md:w-full h-screen backgroundColor">
           <div className=" text-white flex justify-between mx-4 h-14">
             <div className="flex flex-col justify-center items-start">
               <div>{reciverUserName}</div>
               <div className="text-gray-500 text-sm ">
-                last seen <span>{toStatus}</span>
+                <span>{toStatus}</span>
               </div>
             </div>
             <div className="flex justify-center items-center gap-4">
@@ -308,6 +349,7 @@ const Main = () => {
               e.preventDefault(); // ✅ this stops the reload
               sendMessage();
               setmessage("");
+              setisTyping(false);
             }}
             className="flex flex-row justify-between h-[50px] pr-6 text-white"
           >
@@ -318,6 +360,8 @@ const Main = () => {
               value={message}
               onChange={(e) => {
                 setmessage(e.target.value);
+                setisTyping(true);
+                inputIsEmptyUpdateStaus(e);
               }}
             />
 
@@ -325,7 +369,7 @@ const Main = () => {
           </form>
         </div>
       ) : (
-        <div className="selectmessageMessageBackground w-3/4 h-screen text-white flex justify-center items-center">
+        <div className="selectmessageMessageBackground  max-sm:w-full max-md:w-full w-3/4 h-screen text-white flex justify-center items-center">
           <div className="selectMessageColor px-2  py-1 text-sm rounded-full">
             Select a chat to start messaging
           </div>

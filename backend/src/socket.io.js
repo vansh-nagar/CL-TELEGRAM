@@ -158,6 +158,27 @@ const setUpSocketIo = (server) => {
       console.log("client connected to ", roomId);
     });
 
+    client.on("notTyping", async (msg) => {
+      const findStatus = await Status.findOneAndUpdate(
+        {
+          userId: senderId,
+        },
+        { isWriting: false }
+      );
+
+      console.log(findStatus);
+    });
+
+    client.on("isTyping", async (msg) => {
+      const findStatus = await Status.findOneAndUpdate(
+        {
+          userId: senderId,
+        },
+        { isWriting: true }
+      );
+      console.log(findStatus);
+    });
+
     client.on("disconnect", async () => {
       console.log("user disconnected", client.id);
 
@@ -170,6 +191,15 @@ const setUpSocketIo = (server) => {
           new: true,
         }
       );
+
+      const findStatus = await Status.findOneAndUpdate(
+        {
+          userId: senderId,
+        },
+        { isWriting: false }
+      );
+
+      console.log(findStatus);
     });
   });
 };

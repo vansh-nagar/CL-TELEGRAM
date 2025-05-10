@@ -13,6 +13,10 @@ const userStatusSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isWriting: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 export const Status = mongoose.model("Status", userStatusSchema);
