@@ -10,12 +10,15 @@ import {
   RiMore2Fill,
   RiCloseFill,
 } from "@remixicon/react";
+import gsap from "gsap";
 
 const Main = () => {
   const [message, setmessage] = useState("");
   const [from, setfrom] = useState("");
   const [to, setto] = useState("");
   const [reciverUserName, setreciverUserName] = useState("");
+  const [recieverPfp, setrecieverPfp] = useState("");
+  const [reciverTimeInAmPm, setreciverTimeInAmPm] = useState("");
   const [messageArr, setmessageArr] = useState([]);
   const [SeacrchedUser, setSeacrchedUser] = useState([]);
   const [HideSearchedUser, setHideSearchedUser] = useState(false);
@@ -30,6 +33,7 @@ const Main = () => {
   let socket = useRef();
   const messagesEndRef = useRef(null);
   const imputBoxRef = useRef(null);
+  const sideBar = useRef(null);
 
   useEffect(() => {
     if (!to) return;
@@ -48,6 +52,15 @@ const Main = () => {
           } else {
             const time = new Date(res.data.lastSeen).getTime();
             const currentTime = Date.now();
+
+            const timeinampm = new Date(res.data.lastSeen).toLocaleTimeString(
+              [],
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            );
+            setreciverTimeInAmPm(timeinampm);
 
             const difference = currentTime - time;
             const differenceInMin = difference / 1000 / 60;
@@ -228,13 +241,31 @@ const Main = () => {
               onChange={(e) => {
                 GetUsers(e);
               }}
+              onFocus={() => {
+                gsap.to(".closeButton", {
+                  rotate: -90,
+                  opacity: 1,
+                  scale: 1,
+                  duration: 0.1,
+                  ease: "power1.out",
+                });
+              }}
             />
+
             <RiCloseFill
-              className="absolute top-1/2 right-2  -translate-y-1/2 text-gray-500 cursor-pointer hover:text-gray-300 transition-all duration-150"
+              className="closeButton absolute scale-0 opacity-0 top-1/2 right-2 -translate-y-1/2 text-gray-500 cursor-pointer hover:text-gray-300 "
               onClick={() => {
                 InputBox.current.value = "";
                 setHideSearchedUser(false);
                 setHideContact(true);
+
+                gsap.to(".closeButton", {
+                  rotate: 0,
+                  opacity: 0,
+                  scale: 0,
+                  duration: 0.1,
+                  ease: "power1.out",
+                });
               }}
             />
           </div>
@@ -252,7 +283,15 @@ const Main = () => {
                       setHideSearchedUser(false);
                       setHideContact(true);
                       setHideMessages(true);
+                      setrecieverPfp(user.avatar);
                       InputBox.current.value = "";
+                      gsap.to(".closeButton", {
+                        rotate: 0,
+                        opacity: 0,
+                        scale: 0,
+                        duration: 0.1,
+                        ease: "power1.out",
+                      });
                     }}
                   >
                     <div className=" flex  items-center gap-3">
@@ -288,6 +327,17 @@ const Main = () => {
                       setto(user.contact._id);
                       setreciverUserName(user.contact.username);
                       setHideMessages(true);
+                      setrecieverPfp(user.contact.avatar);
+
+                      console.log(user);
+
+                      gsap.to(".closeButton", {
+                        rotate: 0,
+                        opacity: 0,
+                        scale: 0,
+                        duration: 0.1,
+                        ease: "power1.in",
+                      });
                     }}
                   >
                     <div className=" flex  items-center gap-3">
@@ -322,7 +372,21 @@ const Main = () => {
             <div className="flex justify-center items-center gap-4">
               <RiSearchLine />
               <RiPhoneFill />
-              <RiSideBarLine />
+              <RiSideBarLine
+                onClick={() => {
+                  const currentDsiplay = window.getComputedStyle(
+                    sideBar.current
+                  ).display;
+
+                  console.log("cheaking");
+                  if (currentDsiplay === "none") {
+                    sideBar.current.style.display = "flex";
+                    console.log("flex");
+                  } else {
+                    sideBar.current.style.display = "none";
+                  }
+                }}
+              />
               <RiMore2Fill />
             </div>
           </div>
@@ -387,6 +451,45 @@ const Main = () => {
           </div>
         </div>
       )}
+
+      <div
+        ref={sideBar}
+        className="flex flex-col w-[28vw] backgroundColor border-l border-black text-white hidden max-md:hidden"
+      >
+        <div className=" h-14 flex justify-between w-full items-center pl-8 pr-5 text-sm">
+          <div> User Info</div>
+          <RiCloseFill
+            className="text-gray-500 cursor-pointer hover:text-gray-300  w-6 h-6"
+            onClick={() => {
+              const currentDsiplay = window.getComputedStyle(
+                sideBar.current
+              ).display;
+
+              if (currentDsiplay === "flex") {
+                sideBar.current.style.display = "none";
+              }
+            }}
+          />
+        </div>
+
+        <div className="mt-6 px-7  flex items-center gap-6">
+          <div className="w-[80px] h-[80px]">
+            {" "}
+            <img
+              src={recieverPfp}
+              className="rounded-full w-[80px] h-[80px]  object-cover"
+              alt=""
+            />
+          </div>
+
+          <div>
+            <div>{reciverUserName}</div>
+            <div className="text-sm truncate whitespace-nowrap text-gray-500 ">
+              last seen today at {reciverTimeInAmPm}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
