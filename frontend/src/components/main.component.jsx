@@ -9,8 +9,17 @@ import {
   RiSideBarLine,
   RiMore2Fill,
   RiCloseFill,
+  RiVideoOffFill,
+  RiVideoOnLine,
+  RiVideoOnFill,
+  RiCloseLargeLine,
+  RiCloseLine,
+  RiLeafFill,
+  RiArrowLeftFill,
+  RiArrowLeftLine,
 } from "@remixicon/react";
 import gsap from "gsap";
+import Incommingcall from "./call.component";
 
 const Main = () => {
   const [message, setmessage] = useState("");
@@ -27,6 +36,7 @@ const Main = () => {
   const [HideMessages, setHideMessages] = useState(false);
   const [toStatus, settoStatus] = useState("");
   const [isTyping, setisTyping] = useState(false);
+  const [callOverlay, setcallOverlay] = useState(false);
 
   const InputBox = useRef(null);
   const backendUri = import.meta.env.VITE_BACKEND_SOCKET;
@@ -34,6 +44,8 @@ const Main = () => {
   const messagesEndRef = useRef(null);
   const imputBoxRef = useRef(null);
   const sideBar = useRef(null);
+  const constactDiv = useRef(null);
+  const messageDiv = useRef(null);
 
   useEffect(() => {
     if (!to) return;
@@ -228,11 +240,14 @@ const Main = () => {
   };
 
   return (
-    <div className="flex flex-row bg-gray-500">
-      <div className="inboxUsers  h-screen backgroundColor text-white max-md:hidden  border-r border-black">
+    <div className="flex flex-row bg-gray-500 ">
+      <div
+        ref={constactDiv}
+        className="inboxUsers max-sm:flex-col  h-screen backgroundColor text-white max-sm:w-full  border-r border-black"
+      >
         <div className="flex gap-5 justify-between items-center mx-6 my-3">
           <RiMenuLine className=" w-10 text-gray-500  hover:text-gray-300 transition-all duration-150" />
-          <div className="relative  w-80 min-w-8">
+          <div className="relative  w-full sm:w-80">
             <input
               className="textBoxColor text-white w-full h-9 rounded-full pl-3 text-sm  focus:border-none focus:outline-none"
               type="text"
@@ -276,7 +291,7 @@ const Main = () => {
                 return (
                   <div
                     key={index}
-                    className="cursor-pointer flex  items-center justify-between p-[10px] hover:bg-contactHover"
+                    className="cursor-pointer flex  items-center justify-between p-[10px] hover:bg-contactHover "
                     onClick={() => {
                       setto(user._id);
                       setreciverUserName(user.username);
@@ -323,7 +338,7 @@ const Main = () => {
                         ? "bg-contactSelected"
                         : "hover:bg-contactHover"
                     }`}
-                    onClick={() => {
+                    onClick={(e) => {
                       setto(user.contact._id);
                       setreciverUserName(user.contact.username);
                       setHideMessages(true);
@@ -338,6 +353,10 @@ const Main = () => {
                         duration: 0.1,
                         ease: "power1.in",
                       });
+                      if (window.innerWidth < 640) {
+                        constactDiv.current.style.display = "none";
+                        messageDiv.current.style.display = "flex";
+                      }
                     }}
                   >
                     <div className=" flex  items-center gap-3">
@@ -361,18 +380,42 @@ const Main = () => {
       </div>
 
       {HideMessages ? (
-        <div className=" flex-col w-3/4 max-sm:w-full max-md:w-full h-screen backgroundColor">
+        <div
+          ref={messageDiv}
+          className=" flex-col w-3/4 max-sm:w-full max-md:w-full h-screen backgroundColor"
+        >
           <div className=" text-white flex justify-between mx-4 h-14">
-            <div className="flex flex-col justify-center items-start">
-              <div>{reciverUserName}</div>
-              <div className="text-gray-500 text-sm ">
-                <span>{toStatus}</span>
+            <div className=" flex gap-6 flex-row justify-center items-center">
+              <div className="sm:hidden">
+                <RiArrowLeftLine
+                  onClick={() => {
+                    if (window.innerWidth < 640) {
+                      constactDiv.current.style.display = "flex";
+                      messageDiv.current.style.display = "none";
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex flex-col justify-center items-start">
+                <div>{reciverUserName}</div>
+                <div className="text-gray-500 text-sm tail truncate overflow-hidden ">
+                  <span>{toStatus}</span>
+                </div>
               </div>
             </div>
-            <div className="flex justify-center items-center gap-4">
-              <RiSearchLine />
-              <RiPhoneFill />
+            <div className="flex justify-center items-center gap-4 text-IconNotActive  ">
+              <RiSearchLine
+                className=" hover:text-IconOnHover transition-all duration-150 max-sm:hidden
+              "
+              />
+              <RiPhoneFill
+                className=" hover:text-IconOnHover transition-all duration-150 "
+                onClick={() => {
+                  setcallOverlay(true);
+                }}
+              />
               <RiSideBarLine
+                className=" hover:text-IconOnHover transition-all duration-150  max-sm:hidden"
                 onClick={() => {
                   const currentDsiplay = window.getComputedStyle(
                     sideBar.current
@@ -387,7 +430,7 @@ const Main = () => {
                   }
                 }}
               />
-              <RiMore2Fill />
+              <RiMore2Fill className=" hover:text-IconOnHover transition-all duration-150" />
             </div>
           </div>
           <div className="textBoxColor flex flex-col  text-white h-[calc(100%-50px-56px)] px-3 overflow-y-auto scroll-auto p-2">
@@ -445,7 +488,7 @@ const Main = () => {
           </form>
         </div>
       ) : (
-        <div className="selectmessageMessageBackground  max-sm:w-full max-md:w-full w-3/4 h-screen text-white flex justify-center items-center">
+        <div className="selectmessageMessageBackground  max-sm:w-full max-md:w-full w-3/4 h-screen text-white flex justify-center items-center max-sm:hidden">
           <div className="selectMessageColor px-2  py-1 text-sm rounded-full">
             Select a chat to start messaging
           </div>
@@ -490,6 +533,66 @@ const Main = () => {
           </div>
         </div>
       </div>
+
+      {callOverlay ? (
+        <div className="fixed w-full h-screen  flex justify-center items-center  text-white ">
+          <div className="absolute w-2/4 h-3/4  bg-overlay  flex  flex-col justify-between rounded-md max-sm:w-[90%]">
+            <div>
+              {" "}
+              <div className="flex justify-end m-4">
+                <RiCloseFill
+                  onClick={() => {
+                    setcallOverlay(false);
+                  }}
+                  className="text-gray-500 cursor-pointer hover:text-gray-300  w-6 h-6 "
+                />
+              </div>
+              <div className="mt-[6vw] px-7  flex justify-center flex-col items-center gap-6   ">
+                <div className="w-[140px] h-[140px]">
+                  <img
+                    src={recieverPfp}
+                    className="rounded-full w-full h-full  object-cover"
+                  />
+                </div>
+
+                <div className="text-[23px]">{reciverUserName}</div>
+                <div className="w-[40%] max-sm:w-[80%] text-center text-sm -mt-3 text-gray-400">
+                  Click on the Camera icon if you want to start a video call.
+                </div>
+              </div>
+            </div>
+
+            {/*        */}
+            <div className="flex  flex-row justify-center gap-5 mb-6  ">
+              <div className="flex flex-col justify-center items-center gap-1">
+                <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
+                  <RiVideoOnFill className="" />
+                </div>
+                <div className="text-xs text-gray-300">Start Video</div>
+              </div>
+              <div className="flex flex-col justify-center items-center gap-1">
+                <div
+                  onClick={() => {
+                    setcallOverlay(false);
+                  }}
+                  className="w-12 h-12 flex justify-center items-center rounded-full bg-white"
+                >
+                  <RiCloseLine className="text-black" />
+                </div>
+                <div className="text-xs text-gray-300">Cencel</div>
+              </div>
+              <div className="flex flex-col justify-center items-center gap-1">
+                <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
+                  <RiPhoneFill />
+                </div>
+                <div className="text-xs text-gray-300">Start call</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        ""
+      )}
     </div>
   );
 };
