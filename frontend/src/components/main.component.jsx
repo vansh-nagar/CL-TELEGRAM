@@ -245,7 +245,7 @@ const Main = () => {
   const getMedia = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
-      audio: false,
+      audio: true,
     });
     localRef.current.srcObject = stream;
     return stream;
