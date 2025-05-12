@@ -307,6 +307,10 @@ const Main = () => {
                         duration: 0.1,
                         ease: "power1.out",
                       });
+                      if (window.innerWidth < 640) {
+                        constactDiv.current.style.display = "none";
+                        messageDiv.current.style.display = "flex";
+                      }
                     }}
                   >
                     <div className=" flex  items-center gap-3">
