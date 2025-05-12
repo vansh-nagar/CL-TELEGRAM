@@ -46,6 +46,11 @@ const Main = () => {
   const sideBar = useRef(null);
   const constactDiv = useRef(null);
   const messageDiv = useRef(null);
+  const canEmitRef = useRef(true);
+  //for video accessing
+  const [pc, setPc] = useState(null); // Peer connection
+  const localRef = useRef(null); // Local video
+  const remoteRef = useRef(null); // Remote video
 
   useEffect(() => {
     if (!to) return;
@@ -188,8 +193,6 @@ const Main = () => {
     imputBoxRef.current?.focus();
   }, [to]);
 
-  const canEmitRef = useRef(true);
-
   useEffect(() => {
     if (isTyping) {
       socket.current.emit("isTyping");
@@ -238,6 +241,77 @@ const Main = () => {
         console.log(err);
       });
   };
+
+  const getMedia = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false,
+    });
+    localRef.current.srcObject = stream;
+    return stream;
+  };
+
+  // Create a new RTCPeerConnection
+  const createConnection = () => {
+    const connection = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun3.l.google.com:19302" }],
+    });
+
+    // Handle ICE candidates
+    connection.onicecandidate = (e) => {
+      if (e.candidate) {
+        socket.current.emit("icecandidate", { candidate: e.candidate });
+      }
+    };
+
+    // Handle incoming media track from remote peer
+    connection.ontrack = (e) => {
+      remoteRef.current.srcObject = e.streams[0];
+    };
+
+    return connection;
+  };
+
+  // Start the video call by creating an offer
+  const startVideoCall = async () => {
+    const stream = await getMedia();
+    const lc = createConnection();
+    stream.getTracks().forEach((track) => lc.addTrack(track, stream));
+    const offer = await lc.createOffer();
+    await lc.setLocalDescription(offer);
+    socket.current.emit("call", { offer });
+    setPc(lc);
+  };
+
+  useEffect(() => {
+    // Listen for incoming call offer
+    socket.current.on("ReciveCall", async ({ offer }) => {
+      console.log("Received a call");
+
+      const stream = await getMedia();
+      const rc = createConnection();
+      stream.getTracks().forEach((track) => rc.addTrack(track, stream));
+      await rc.setRemoteDescription(offer);
+      const answer = await rc.createAnswer();
+      await rc.setLocalDescription(answer);
+      socket.current.emit("answerCall", { answer });
+
+      setPc(rc);
+    });
+
+    // Listen for the answer to the call
+    socket.current.on("callAccepted", async ({ answer }) => {
+      console.log("Call accepted");
+      await pc.setRemoteDescription(answer);
+    });
+
+    // Handle ICE candidates from other peer
+    socket.current.on("icecandidate", async ({ candidate }) => {
+      if (pc && candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+  }, [pc]);
 
   return (
     <div className="flex flex-row bg-gray-500 ">
@@ -521,9 +595,8 @@ const Main = () => {
 
         <div className="mt-6 px-7  flex items-center gap-6">
           <div className="w-[80px] h-[80px]">
-            {" "}
             <img
-              src={recieverPfp}
+              src={recieverPfp || null}
               className="rounded-full w-[80px] h-[80px]  object-cover"
               alt=""
             />
@@ -569,7 +642,12 @@ const Main = () => {
             {/*        */}
             <div className="flex  flex-row justify-center gap-5 mb-6  ">
               <div className="flex flex-col justify-center items-center gap-1">
-                <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
+                <div
+                  onClick={() => {
+                    startVideoCall();
+                  }}
+                  className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1"
+                >
                   <RiVideoOnFill className="" />
                 </div>
                 <div className="text-xs text-gray-300">Start Video</div>
@@ -591,6 +669,18 @@ const Main = () => {
                 </div>
                 <div className="text-xs text-gray-300">Start call</div>
               </div>
+              <div>
+                <h3>Local Video</h3>
+                <video ref={localRef} autoPlay muted className="h-32 w-32" />
+              </div>
+              <div>
+                <h3>Remote Video</h3>
+                <video
+                  ref={remoteRef}
+                  autoPlay
+                  className="h-32 w-32 bg-green-300"
+                />
+              </div>{" "}
             </div>
           </div>
         </div>

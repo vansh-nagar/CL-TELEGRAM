@@ -17,6 +17,10 @@ const userStatusSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  onCall: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 export const Status = mongoose.model("Status", userStatusSchema);

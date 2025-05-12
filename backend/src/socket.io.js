@@ -174,7 +174,23 @@ const setUpSocketIo = (server) => {
         },
         { isWriting: true }
       );
-      console.log(findStatus);
+    });
+
+    client.on("call", ({ offer }) => {
+      console.log("Sending offer to the other user");
+      client.broadcast.emit("ReciveCall", { offer });
+    });
+
+    // Handle answer to the call
+    client.on("answerCall", ({ answer }) => {
+      console.log("Sending answer to the other user");
+      client.broadcast.emit("callAccepted", { answer });
+    });
+
+    // Handle ICE candidate exchange
+    client.on("icecandidate", ({ candidate }) => {
+      console.log("Sending ICE candidate to the other user");
+      client.broadcast.emit("icecandidate", { candidate });
     });
 
     client.on("disconnect", async () => {
