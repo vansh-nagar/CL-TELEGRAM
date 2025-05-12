@@ -9,13 +9,8 @@ import {
   RiSideBarLine,
   RiMore2Fill,
   RiCloseFill,
-  RiVideoOffFill,
-  RiVideoOnLine,
   RiVideoOnFill,
-  RiCloseLargeLine,
   RiCloseLine,
-  RiLeafFill,
-  RiArrowLeftFill,
   RiArrowLeftLine,
 } from "@remixicon/react";
 import gsap from "gsap";

@@ -1,4 +1,4 @@
-import { Server, Socket } from "socket.io";
+import { Server } from "socket.io";
 import { User } from "./models/user.models.js";
 import { Status } from "./models/user.status.models.js";
 import { Message } from "./models/message.models.js";
@@ -21,7 +21,11 @@ const setUpSocketIo = (server) => {
 
     const cookie = client.handshake.headers.cookie;
 
-    const parsedCookie = parseCookie.parse(cookie);
+    if (!cookie) {
+      return;
+    }
+
+    const parsedCookie = parseCookie?.parse(cookie);
 
     const decodedCookie = jwt.verify(
       parsedCookie.accessToken,
@@ -56,15 +60,6 @@ const setUpSocketIo = (server) => {
         receiver: msg.to,
         message: msg.message,
       });
-
-      // const isoTime = message.createdAt;
-      // const date = new Date(isoTime);
-
-      // const formattedTime = date.toLocaleTimeString("en-US", {
-      //   hour: "numeric",
-      //   minute: "numeric",
-      //   hour12: true,
-      // });
 
       console.log("message saved to db");
 
