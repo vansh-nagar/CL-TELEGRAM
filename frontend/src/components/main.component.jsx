@@ -37,6 +37,7 @@ const Main = () => {
   const [toStatus, settoStatus] = useState("");
   const [isTyping, setisTyping] = useState(false);
   const [callOverlay, setcallOverlay] = useState(false);
+  const [videoOverlay, setvideoOverlay] = useState(false);
 
   const InputBox = useRef(null);
   const backendUri = import.meta.env.VITE_BACKEND_SOCKET;
@@ -287,6 +288,8 @@ const Main = () => {
     // Listen for incoming call offer
     socket.current.on("ReciveCall", async ({ offer }) => {
       console.log("Received a call");
+      setvideoOverlay(true);
+      setcallOverlay(false);
 
       const stream = await getMedia();
       const rc = createConnection();
@@ -575,7 +578,7 @@ const Main = () => {
 
       <div
         ref={sideBar}
-        className="flex flex-col w-[28vw] backgroundColor border-l border-black text-white hidden max-md:hidden"
+        className=" flex-col w-[28vw] backgroundColor border-l border-black text-white hidden max-md:hidden"
       >
         <div className=" h-14 flex justify-between w-full items-center pl-8 pr-5 text-sm">
           <div> User Info</div>
@@ -644,13 +647,15 @@ const Main = () => {
               <div className="flex flex-col justify-center items-center gap-1">
                 <div
                   onClick={() => {
+                    setcallOverlay(false);
+                    setvideoOverlay(true);
                     startVideoCall();
                   }}
                   className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1"
                 >
                   <RiVideoOnFill className="" />
                 </div>
-                <div className="text-xs text-gray-300">Start Video</div>
+                <div className="text-xs text-gray-300 ">Start Video</div>
               </div>
               <div className="flex flex-col justify-center items-center gap-1">
                 <div
@@ -669,18 +674,61 @@ const Main = () => {
                 </div>
                 <div className="text-xs text-gray-300">Start call</div>
               </div>
-              <div>
-                <h3>Local Video</h3>
-                <video ref={localRef} autoPlay muted className="h-32 w-32" />
+            </div>
+          </div>
+        </div>
+      ) : (
+        ""
+      )}
+      {videoOverlay ? (
+        <div className="fixed w-full h-screen  flex justify-center items-center  text-white ">
+          <div className=" w-2/4 h-3/4 relative  bg-overlay  flex  flex-col justify-between  rounded-md max-sm:w-[90%] overflow-hidden">
+            <div className="">
+              <video
+                ref={remoteRef}
+                autoPlay
+                className="  absolute w-[40%] h-[20%] right-3 bottom-3"
+              />
+            </div>
+            <div className="  h-full w-full  flex justify-center items-center">
+              <video
+                ref={localRef}
+                autoPlay
+                muted
+                className="h-screen w-full"
+              />
+              <div className="flex  flex-row justify-center gap-5 mb-6 absolute bottom-3 ">
+                <div className="flex flex-col justify-center items-center gap-1">
+                  <div
+                    onClick={() => {
+                      setcallOverlay(false);
+                      setvideoOverlay(true);
+                      startVideoCall();
+                    }}
+                    className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1"
+                  >
+                    <RiVideoOnFill className="" />
+                  </div>
+                  <div className="text-xs text-gray-300 ">Start Video</div>
+                </div>
+                <div className="flex flex-col justify-center items-center gap-1">
+                  <div
+                    onClick={() => {
+                      setcallOverlay(false);
+                    }}
+                    className="w-12 h-12 flex justify-center items-center rounded-full bg-white"
+                  >
+                    <RiCloseLine className="text-black" />
+                  </div>
+                  <div className="text-xs text-gray-300">Cencel</div>
+                </div>
+                <div className="flex flex-col justify-center items-center gap-1">
+                  <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
+                    <RiPhoneFill />
+                  </div>
+                  <div className="text-xs text-gray-300">Start call</div>
+                </div>
               </div>
-              <div>
-                <h3>Remote Video</h3>
-                <video
-                  ref={remoteRef}
-                  autoPlay
-                  className="h-32 w-32 bg-green-300"
-                />
-              </div>{" "}
             </div>
           </div>
         </div>

@@ -8,23 +8,31 @@ const RegisterUser = () => {
 
   const [username, setusername] = useState("");
   const [password, setpassword] = useState("");
+  const [avatar, setavatar] = useState(null);
+  const [error, seterror] = useState("");
 
   const SignUp = (e) => {
     e.preventDefault();
 
+    const formData = new FormData();
+    formData.append("username", username);
+    formData.append("password", password);
+    formData.append("avatar", avatar);
+
     axios
-      .post(
-        `${import.meta.env.VITE_BAKCEND_BASEURL}/register`,
-        { username, password },
-        {
-          withCredentials: true,
-        }
-      )
+      .post(`${import.meta.env.VITE_BAKCEND_BASEURL}/register`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        withCredentials: true,
+      })
       .then((res) => {
-        console.log(res.data);
+        console.log(res.data.statusCode);
+        if (res.data.statusCode === 201) {
+          navigate("/main");
+        }
       })
       .catch((err) => {
         console.log(err.response.data.message);
+        seterror(err.response.data.message);
       });
   };
 
@@ -60,6 +68,15 @@ const RegisterUser = () => {
             }}
             className="w-full h-14  px-5   border border-black rounded-md  mt-3 "
           />
+          <input
+            type="file"
+            onChange={(e) => {
+              setavatar(e.target.files[0]);
+            }}
+            className="mt-3 mb-10"
+            name=""
+            id=""
+          />
 
           <button
             type="submit"
@@ -69,6 +86,7 @@ const RegisterUser = () => {
           </button>
         </form>
       </div>
+      <div className="text-red-500">{error}</div>
     </div>
   );
 };
