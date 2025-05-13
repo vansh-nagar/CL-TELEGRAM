@@ -16,36 +16,40 @@ import {
 import gsap from "gsap";
 
 const Main = () => {
-  const [message, setmessage] = useState("");
-  const [from, setfrom] = useState("");
-  const [to, setto] = useState("");
-  const [reciverUserName, setreciverUserName] = useState("");
-  const [recieverPfp, setrecieverPfp] = useState("");
-  const [reciverTimeInAmPm, setreciverTimeInAmPm] = useState("");
-  const [messageArr, setmessageArr] = useState([]);
-  const [SeacrchedUser, setSeacrchedUser] = useState([]);
-  const [HideSearchedUser, setHideSearchedUser] = useState(false);
-  const [Contacts, setContacts] = useState([]);
-  const [HideContact, setHideContact] = useState(true);
-  const [HideMessages, setHideMessages] = useState(false);
-  const [toStatus, settoStatus] = useState("");
-  const [isTyping, setisTyping] = useState(false);
-  const [callOverlay, setcallOverlay] = useState(false);
-  const [videoOverlay, setvideoOverlay] = useState(false);
+  //message
+  const [message, setmessage] = useState(""); // Message content
+  const [messageArr, setmessageArr] = useState([]); // Chat messages array
+  const [reciverTimeInAmPm, setreciverTimeInAmPm] = useState(""); // Timestamp
 
-  const InputBox = useRef(null);
+  // users
+  const [from, setfrom] = useState(""); // Sender ID
+  const [to, setto] = useState(""); // Receiver ID
+  const [reciverUserName, setreciverUserName] = useState(""); // Receiver name
+  const [recieverPfp, setrecieverPfp] = useState(""); // Receiver profile picture
+  const [toStatus, settoStatus] = useState(""); // Receiver online/offline
+
+  //search
+  const [SeacrchedUser, setSeacrchedUser] = useState([]); // Search result list
+  const [HideSearchedUser, setHideSearchedUser] = useState(false); // Hide/show search result
+
+  //contact
+  const [Contacts, setContacts] = useState([]); // Contact list
+  const [HideContact, setHideContact] = useState(true); // Hide/show contact list
+
+  //chat ui
+  const [HideMessages, setHideMessages] = useState(false); // Hide/show messages
+  const [isTyping, setisTyping] = useState(false); // Typing indicator
+  const [classOverlay, setclassOverlay] = useState(false); // Overlay state
+
   const backendUri = import.meta.env.VITE_BACKEND_SOCKET;
-  let socket = useRef();
-  const messagesEndRef = useRef(null);
-  const imputBoxRef = useRef(null);
-  const sideBar = useRef(null);
-  const constactDiv = useRef(null);
-  const messageDiv = useRef(null);
-  const canEmitRef = useRef(true);
-  //for video accessing
-  const [pc, setPc] = useState(null); // Peer connection
-  const localRef = useRef(null); // Local video
-  const remoteRef = useRef(null); // Remote video
+
+  const InputBox = useRef(null); // Input DOM ref
+  const socket = useRef(); // Socket ref
+  const messagesEndRef = useRef(null); // Scroll to bottom
+  const imputBoxRef = useRef(null); // Input box container
+  const sideBar = useRef(null); // Sidebar DOM
+  const constactDiv = useRef(null); // Contact container
+  const messageDiv = useRef(null); // Message container
 
   useEffect(() => {
     if (!to) return;
@@ -237,115 +241,6 @@ const Main = () => {
       });
   };
 
-  const getMedia = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-    localRef.current.srcObject = stream;
-    return stream;
-  };
-
-  // Create a new RTCPeerConnection
-  const createConnection = (reciverCurrentSocketId) => {
-    const connection = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun3.l.google.com:19302" }],
-    });
-
-    // Handle ICE candidates
-    connection.onicecandidate = (e) => {
-      if (e.candidate) {
-        socket.current.emit("icecandidate", {
-          candidate: e.candidate,
-          reciverCurrentSocketId,
-        });
-      }
-    };
-
-    // Handle incoming media track from remote peer
-    connection.ontrack = (e) => {
-      remoteRef.current.srcObject = e.streams[0];
-    };
-
-    return connection;
-  };
-
-  // Start the video call by creating an offer
-  const startVideoCall = async () => {
-    let reciverCurrentSocketId;
-    await axios
-      .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getUserStatus`, {
-        params: { to },
-        withCredentials: true,
-      })
-      .then((res) => {
-        reciverCurrentSocketId = res.data.currentSocketId;
-      })
-      .catch((err) => console.log(err.message));
-
-    console.log("reciverCurrentSocketId", reciverCurrentSocketId);
-
-    const stream = await getMedia();
-    const lc = createConnection(reciverCurrentSocketId);
-    stream.getTracks().forEach((track) => lc.addTrack(track, stream));
-    const offer = await lc.createOffer();
-    await lc.setLocalDescription(offer);
-
-    socket.current.emit("call", { offer, reciverCurrentSocketId, from });
-    setPc(lc);
-  };
-
-  useEffect(() => {
-    socket.current.on("ReciveCall", async (msg) => {
-      const findSenderStatus = async () => {
-        try {
-          const res = await axios.get(
-            `${import.meta.env.VITE_BAKCEND_BASEURL}/getUserStatus`,
-            {
-              params: { to: msg.from },
-              withCredentials: true,
-            }
-          );
-
-          return res.data.currentSocketId;
-        } catch (error) {
-          console.error("Error fetching sender status:", error);
-          return null;
-        }
-      };
-
-      const SenderCurrentSocketId = await findSenderStatus();
-
-      console.log("Incoming call from:", SenderCurrentSocketId);
-      setvideoOverlay(true);
-      setcallOverlay(false);
-
-      const stream = await getMedia();
-      const rc = createConnection();
-      stream.getTracks().forEach((track) => rc.addTrack(track, stream));
-      await rc.setRemoteDescription(msg.offer);
-      const answer = await rc.createAnswer();
-      await rc.setLocalDescription(answer);
-      socket.current.emit("answerCall", { answer, SenderCurrentSocketId });
-
-      setPc(rc);
-    });
-
-    // Listen for the answer to the call
-    socket.current.on("callAccepted", async ({ answer }) => {
-      console.log("Call accepted");
-      await pc.setRemoteDescription(answer);
-    });
-
-    // Handle ICE candidates from other peer
-    socket.current.on("icecandidate", async ({ candidate }) => {
-      console.log("Received ICE candidate:");
-      if (pc && candidate) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-    });
-  }, [pc]);
-
   return (
     <div className="flex flex-row bg-gray-500 ">
       <div
@@ -522,7 +417,7 @@ const Main = () => {
               <RiPhoneFill
                 className=" hover:text-IconOnHover transition-all duration-150 "
                 onClick={() => {
-                  setcallOverlay(true);
+                  setclassOverlay(true);
                 }}
               />
               <RiSideBarLine
@@ -644,7 +539,7 @@ const Main = () => {
         </div>
       </div>
 
-      {callOverlay ? (
+      {classOverlay ? (
         <div className="fixed w-full h-screen  flex justify-center items-center  text-white ">
           <div className="absolute w-2/4 h-3/4  bg-overlay  flex  flex-col justify-between rounded-md max-sm:w-[90%]">
             <div>
@@ -652,7 +547,7 @@ const Main = () => {
               <div className="flex justify-end m-4">
                 <RiCloseFill
                   onClick={() => {
-                    setcallOverlay(false);
+                    setclassOverlay(false);
                   }}
                   className="text-gray-500 cursor-pointer hover:text-gray-300  w-6 h-6 "
                 />
@@ -675,14 +570,7 @@ const Main = () => {
             {/*        */}
             <div className="flex  flex-row justify-center gap-5 mb-6  ">
               <div className="flex flex-col justify-center items-center gap-1">
-                <div
-                  onClick={() => {
-                    setcallOverlay(false);
-                    setvideoOverlay(true);
-                    startVideoCall();
-                  }}
-                  className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1"
-                >
+                <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
                   <RiVideoOnFill className="" />
                 </div>
                 <div className="text-xs text-gray-300 ">Start Video</div>
@@ -690,7 +578,7 @@ const Main = () => {
               <div className="flex flex-col justify-center items-center gap-1">
                 <div
                   onClick={() => {
-                    setcallOverlay(false);
+                    setclassOverlay(false);
                   }}
                   className="w-12 h-12 flex justify-center items-center rounded-full bg-white"
                 >
@@ -703,61 +591,6 @@ const Main = () => {
                   <RiPhoneFill />
                 </div>
                 <div className="text-xs text-gray-300">Start call</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        ""
-      )}
-      {videoOverlay ? (
-        <div className="fixed w-full h-screen  flex justify-center items-center  text-white ">
-          <div className=" w-2/4 h-3/4 relative  bg-overlay  flex  flex-col justify-between  rounded-md max-sm:w-[90%] overflow-hidden">
-            <div className="">
-              <video
-                ref={remoteRef}
-                autoPlay
-                className="  absolute w-[40%] h-[20%] right-3 bottom-3"
-              />
-            </div>
-            <div className="  h-full w-full  flex justify-center items-center">
-              <video
-                ref={localRef}
-                autoPlay
-                muted
-                className="h-screen w-full"
-              />
-              <div className="flex  flex-row justify-center gap-5 mb-6 absolute bottom-3 ">
-                <div className="flex flex-col justify-center items-center gap-1">
-                  <div
-                    onClick={() => {
-                      setcallOverlay(false);
-                      setvideoOverlay(true);
-                      startVideoCall();
-                    }}
-                    className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1"
-                  >
-                    <RiVideoOnFill className="" />
-                  </div>
-                  <div className="text-xs text-gray-300 ">Start Video</div>
-                </div>
-                <div className="flex flex-col justify-center items-center gap-1">
-                  <div
-                    onClick={() => {
-                      setcallOverlay(false);
-                    }}
-                    className="w-12 h-12 flex justify-center items-center rounded-full bg-white"
-                  >
-                    <RiCloseLine className="text-black" />
-                  </div>
-                  <div className="text-xs text-gray-300">Cencel</div>
-                </div>
-                <div className="flex flex-col justify-center items-center gap-1">
-                  <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
-                    <RiPhoneFill />
-                  </div>
-                  <div className="text-xs text-gray-300">Start call</div>
-                </div>
               </div>
             </div>
           </div>
