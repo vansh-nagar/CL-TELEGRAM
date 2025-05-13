@@ -180,23 +180,22 @@ const setUpSocketIo = (server) => {
       );
     });
 
-    client.on("call", ({ offer, reciverCurrentSocketId, from }) => {
-      console.log("Sending offer to the other user");
-      client.to(reciverCurrentSocketId).emit("ReciveCall", { offer, from });
+    // Handle call initiation
+    client.on("callUser", ({ offer, callReceiverSocketId, callerId }) => {
+      console.log(`Calling user ${callReceiverSocketId} from ${callerId}`);
+      client.brod.emit("callIncoming", { offer, callerId });
     });
 
-    // Handle answer to the call
-    client.on("answerCall", ({ answer, SenderCurrentSocketId }) => {
-      console.log("Sending answer to the other user");
-      client.to(SenderCurrentSocketId).emit("callAccepted", { answer });
+    // Handle call answer
+    client.on("answerCall", ({ answer, callerId }) => {
+      client.broadcast.emit("callAnswered", { answer });
     });
 
     // Handle ICE candidate exchange
-    client.on("icecandidate", ({ candidate, reciverCurrentSocketId }) => {
-      console.log("Sending ICE candidate to the other user");
-      client.to(reciverCurrentSocketId).emit("icecandidate", { candidate });
+    client.on("icecandidate", ({ candidate, targetSocketId }) => {
+      console.log("Sending ICE candidate to:", targetSocketId);
+      io.broadcast.emit("iceCandidate", { candidate });
     });
-
     client.on("disconnect", async () => {
       console.log("user disconnected", client.id);
 

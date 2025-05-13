@@ -51,6 +51,11 @@ const Main = () => {
   const constactDiv = useRef(null); // Contact container
   const messageDiv = useRef(null); // Message container
 
+  const [pc, setpc] = useState(null);
+  const localRef = useRef(null); // Local video ref'
+  const remoteRef = useRef(null); // Remote video ref
+  const [callReciverScoketId, setcallReciverScoketId] = useState("");
+
   useEffect(() => {
     if (!to) return;
 
@@ -62,7 +67,7 @@ const Main = () => {
           withCredentials: true,
         })
         .then((res) => {
-          console.log(res.data.isOnline);
+          setcallReciverScoketId(res.data.currentSocketId);
           if (res.data.isWriting || res.data.isOnline) {
             settoStatus(res.data.isWriting ? "typing...." : "online");
           } else {
@@ -241,8 +246,99 @@ const Main = () => {
       });
   };
 
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  const getMedia = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+    localRef.current.srcObject = stream;
+    return stream;
+  };
+
+  const createConnection = () => {
+    const connection = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+
+    // Send ICE candidates
+    connection.onicecandidate = (e) => {
+      if (e.candidate) {
+        socket.current.emit("icecandidate", {
+          candidate: e.candidate,
+        });
+      }
+    };
+
+    // Set remote stream
+    connection.ontrack = (e) => {
+      remoteRef.current.srcObject = e.streams[0];
+    };
+
+    return connection;
+  };
+
+  const startCall = async () => {
+    const stream = await getMedia();
+    const connection = createConnection();
+    setpc(connection);
+
+    stream.getTracks().forEach((track) => {
+      connection.addTrack(track, stream);
+    });
+
+    const offer = await connection.createOffer();
+    await connection.setLocalDescription(offer);
+
+    socket.current.emit("callUser", {
+      offer,
+    });
+  };
+
+  useEffect(() => {
+    socket.current.on("callIncoming", async ({ offer }) => {
+      const stream = await getMedia();
+      const connection = createConnection();
+      setpc(connection);
+
+      stream.getTracks().forEach((track) => {
+        connection.addTrack(track, stream);
+      });
+
+      await connection.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await connection.createAnswer();
+      await connection.setLocalDescription(answer);
+
+      socket.current.emit("answerCall", {
+        answer,
+      });
+    });
+
+    socket.current.on("callAnswered", async ({ answer }) => {
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      }
+    });
+
+    socket.current.on("iceCandidate", async ({ candidate }) => {
+      if (pc && candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+  }, [pc]);
+
   return (
     <div className="flex flex-row bg-gray-500 ">
+      <button
+        onClick={() => {
+          startCall();
+        }}
+      >
+        start video call
+      </button>
+      <video ref={localRef} muted autoPlay className="bg-red-500"></video>
+      <video ref={remoteRef} autoPlay className="bg-green-400"></video>
       <div
         ref={constactDiv}
         className="inboxUsers max-sm:flex-col  h-screen backgroundColor text-white max-sm:w-full  border-r border-black"
@@ -444,10 +540,14 @@ const Main = () => {
               if (msg.sender === from) {
                 return (
                   <div key={index} className=" flex justify-end">
-                    <div className="senderMessageColor flex flex-row gap-2 rounded-full py-1 px-3 m-[1.1px]">
+                    <div className="senderMessageColor flex flex-row gap-4 rounded-full py-1 px-3 m-[1.1px]">
                       <div>{msg.message}</div>
                       <div className="senderTimerColor text-[13px] translate-y-1.5">
-                        {msg.createdAt}
+                        {new Date(msg.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true, // This enables AM/PM format
+                        })}
                       </div>
                     </div>
                   </div>
@@ -455,10 +555,14 @@ const Main = () => {
               } else {
                 return (
                   <div key={index} className="flex justify-start">
-                    <div className="reciverColor flex flex-row gap-2 rounded-full py-1 px-3 m-[1.1px]">
+                    <div className="reciverColor flex flex-row gap-4 rounded-full py-1 px-3 m-[1.1px]">
                       <div>{msg.message}</div>
                       <div className="RecivertimerColor text-[13px] translate-y-1.5">
-                        {msg.createdAt}
+                        {new Date(msg.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true, // This enables AM/PM format
+                        })}
                       </div>
                     </div>
                   </div>
