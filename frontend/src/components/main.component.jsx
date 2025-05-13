@@ -14,7 +14,6 @@ import {
   RiArrowLeftLine,
 } from "@remixicon/react";
 import gsap from "gsap";
-import Incommingcall from "./call.component";
 
 const Main = () => {
   const [message, setmessage] = useState("");
@@ -248,7 +247,7 @@ const Main = () => {
   };
 
   // Create a new RTCPeerConnection
-  const createConnection = () => {
+  const createConnection = (reciverCurrentSocketId) => {
     const connection = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun3.l.google.com:19302" }],
     });
@@ -256,7 +255,10 @@ const Main = () => {
     // Handle ICE candidates
     connection.onicecandidate = (e) => {
       if (e.candidate) {
-        socket.current.emit("icecandidate", { candidate: e.candidate });
+        socket.current.emit("icecandidate", {
+          candidate: e.candidate,
+          reciverCurrentSocketId,
+        });
       }
     };
 
@@ -270,29 +272,61 @@ const Main = () => {
 
   // Start the video call by creating an offer
   const startVideoCall = async () => {
+    let reciverCurrentSocketId;
+    await axios
+      .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getUserStatus`, {
+        params: { to },
+        withCredentials: true,
+      })
+      .then((res) => {
+        reciverCurrentSocketId = res.data.currentSocketId;
+      })
+      .catch((err) => console.log(err.message));
+
+    console.log("reciverCurrentSocketId", reciverCurrentSocketId);
+
     const stream = await getMedia();
-    const lc = createConnection();
+    const lc = createConnection(reciverCurrentSocketId);
     stream.getTracks().forEach((track) => lc.addTrack(track, stream));
     const offer = await lc.createOffer();
     await lc.setLocalDescription(offer);
-    socket.current.emit("call", { offer });
+
+    socket.current.emit("call", { offer, reciverCurrentSocketId, from });
     setPc(lc);
   };
 
   useEffect(() => {
-    // Listen for incoming call offer
-    socket.current.on("ReciveCall", async ({ offer }) => {
-      console.log("Received a call");
+    socket.current.on("ReciveCall", async (msg) => {
+      const findSenderStatus = async () => {
+        try {
+          const res = await axios.get(
+            `${import.meta.env.VITE_BAKCEND_BASEURL}/getUserStatus`,
+            {
+              params: { to: msg.from },
+              withCredentials: true,
+            }
+          );
+
+          return res.data.currentSocketId;
+        } catch (error) {
+          console.error("Error fetching sender status:", error);
+          return null;
+        }
+      };
+
+      const SenderCurrentSocketId = await findSenderStatus();
+
+      console.log("Incoming call from:", SenderCurrentSocketId);
       setvideoOverlay(true);
       setcallOverlay(false);
 
       const stream = await getMedia();
       const rc = createConnection();
       stream.getTracks().forEach((track) => rc.addTrack(track, stream));
-      await rc.setRemoteDescription(offer);
+      await rc.setRemoteDescription(msg.offer);
       const answer = await rc.createAnswer();
       await rc.setLocalDescription(answer);
-      socket.current.emit("answerCall", { answer });
+      socket.current.emit("answerCall", { answer, SenderCurrentSocketId });
 
       setPc(rc);
     });
@@ -305,6 +339,7 @@ const Main = () => {
 
     // Handle ICE candidates from other peer
     socket.current.on("icecandidate", async ({ candidate }) => {
+      console.log("Received ICE candidate:");
       if (pc && candidate) {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       }

@@ -1,6 +1,6 @@
 import { asyncHandler } from "../utils/async.handler.js";
 import { Message } from "../models/message.models.js";
-import mongoose from "mongoose";
+import { ApiError } from "../utils/apiError.js";
 
 const getMessages = asyncHandler(async (req, res) => {
   const { sender, receiver } = req.query;

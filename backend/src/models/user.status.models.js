@@ -21,6 +21,10 @@ const userStatusSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  currentSocketId: {
+    type: String,
+    default: null,
+  },
 });
 
 export const Status = mongoose.model("Status", userStatusSchema);

@@ -34,6 +34,15 @@ const setUpSocketIo = (server) => {
 
     const senderId = decodedCookie.id;
 
+    const UpdateCurrentSocketId = await Status.findOneAndUpdate(
+      {
+        userId: senderId,
+      },
+      { currentSocketId: client.id },
+      { new: true }
+    );
+    console.log("updated socket id", UpdateCurrentSocketId);
+
     client.emit("myId", {
       senderId,
     });
@@ -171,25 +180,33 @@ const setUpSocketIo = (server) => {
       );
     });
 
-    client.on("call", ({ offer }) => {
+    client.on("call", ({ offer, reciverCurrentSocketId, from }) => {
       console.log("Sending offer to the other user");
-      client.broadcast.emit("ReciveCall", { offer });
+      client.to(reciverCurrentSocketId).emit("ReciveCall", { offer, from });
     });
 
     // Handle answer to the call
-    client.on("answerCall", ({ answer }) => {
+    client.on("answerCall", ({ answer, SenderCurrentSocketId }) => {
       console.log("Sending answer to the other user");
-      client.broadcast.emit("callAccepted", { answer });
+      client.to(SenderCurrentSocketId).emit("callAccepted", { answer });
     });
 
     // Handle ICE candidate exchange
-    client.on("icecandidate", ({ candidate }) => {
+    client.on("icecandidate", ({ candidate, reciverCurrentSocketId }) => {
       console.log("Sending ICE candidate to the other user");
-      client.broadcast.emit("icecandidate", { candidate });
+      client.to(reciverCurrentSocketId).emit("icecandidate", { candidate });
     });
 
     client.on("disconnect", async () => {
       console.log("user disconnected", client.id);
+
+      const RemoveCurrentSocketId = await Status.findOneAndUpdate(
+        {
+          userId: senderId,
+        },
+        { currentSocketId: null },
+        { new: true }
+      );
 
       const clientStatus = await Status.findOneAndUpdate(
         {
