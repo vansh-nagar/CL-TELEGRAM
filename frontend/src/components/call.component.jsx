@@ -158,13 +158,13 @@ const Call = () => {
 
         {/*        */}
         <div className="flex  flex-row justify-center gap-5 mb-6  ">
-          <video ref={localRef} autoPlay className="w-32 bg-green-500"></video>
           <video
-            ref={remoteRef}
+            ref={localRef}
             autoPlay
             muted
-            className="w-32 bg-red-500"
+            className="w-32 bg-green-500"
           ></video>
+          <video ref={remoteRef} autoPlay className="w-32 bg-red-500"></video>
 
           <div
             onClick={() => {
