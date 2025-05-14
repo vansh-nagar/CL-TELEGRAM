@@ -285,7 +285,7 @@ const Main = () => {
     setpc(connection);
 
     stream.getTracks().forEach((track) => {
-      connection.addTrack(track, stream);
+      connection.addTrack(track, stream); // main stream is givven so that web rtc can keep track from whom what track came
     });
 
     const offer = await connection.createOffer();
@@ -296,7 +296,7 @@ const Main = () => {
     });
   };
 
-  useEffect(() => {
+  socket.current.useEffect(() => {
     socket.current.on("callIncoming", async ({ offer }) => {
       const stream = await getMedia();
       const connection = createConnection();
@@ -480,7 +480,6 @@ const Main = () => {
             : ""}
         </div>
       </div>
-
       {HideMessages ? (
         <div
           ref={messageDiv}
@@ -604,7 +603,6 @@ const Main = () => {
           </div>
         </div>
       )}
-
       <div
         ref={sideBar}
         className=" flex-col w-[28vw] backgroundColor border-l border-black text-white hidden max-md:hidden"
