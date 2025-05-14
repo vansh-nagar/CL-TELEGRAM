@@ -194,6 +194,11 @@ const setUpSocketIo = (server) => {
       client.broadcast.emit("offerAccepted", { answer: msg.answer });
     });
 
+    client.on("closeCall", () => {
+      console.log("closing call");
+      client.broadcast.emit("callClosed");
+    });
+
     client.on("disconnect", async () => {
       console.log("user disconnected", client.id);
 

@@ -62,7 +62,7 @@ const Main = () => {
           withCredentials: true,
         })
         .then((res) => {
-          setcallReciverScoketId(res.data.currentSocketId);
+          // setcallReciverScoketId(res.data.currentSocketId);
           if (res.data.isWriting || res.data.isOnline) {
             settoStatus(res.data.isWriting ? "typing...." : "online");
           } else {

@@ -21,6 +21,8 @@ const Call = () => {
   //
 
   const [publicConnection, setpublicConnection] = useState(null);
+  //
+  const [callStaus, setcallStaus] = useState(false);
 
   useEffect(() => {
     socket.current = io.connect(backendUri, {
@@ -33,6 +35,7 @@ const Call = () => {
       video: true,
       audio: true,
     });
+    setlocalVideoStream(stream);
     localRef.current.srcObject = stream;
     return stream;
   };
@@ -56,6 +59,7 @@ const Call = () => {
   //   }
   // };
   //
+
   const createConnection = async () => {
     const connection = new RTCPeerConnection({
       iceServers: [
@@ -78,13 +82,14 @@ const Call = () => {
     };
 
     connection.ontrack = (e) => {
-      remoteRef.current.srcObject = e.streams[0];
+      remoteRef.current.srcObject = e?.streams[0];
     };
 
     return connection;
   };
   //
   const startCall = async () => {
+    setcallStaus(true);
     const stream = await getMedia();
     const lc = await createConnection();
     stream.getTracks().forEach((track) => {
@@ -114,20 +119,58 @@ const Call = () => {
       await rc.setLocalDescription(answer);
 
       setpublicConnection(rc);
+      console.log(rc);
       socket.current.emit("answerOffer", { answer });
     });
 
     socket.current.on("offerAccepted", async (msg) => {
       console.log(msg.answer);
-      await publicConnection.setRemoteDescription(msg.answer);
+      await publicConnection?.setRemoteDescription(msg.answer);
     });
 
     socket.current.on("iceCandidate", async (msg) => {
-      await publicConnection.addIceCandidate(
-        new RTCIceCandidate(msg.candidate)
-      );
+      await publicConnection?.addIceCandidate(msg.candidate);
+    });
+
+    socket.current.on("callClosed", () => {
+      if (!publicConnection) {
+        return;
+      }
+      localVideoStream.getTracks().forEach((track) => {
+        track.stop();
+      });
+
+      publicConnection?.close();
+      setpublicConnection(null);
+
+      if (!remoteRef || !localRef) {
+        return;
+      }
+      remoteRef.current.srcObject = null;
+      localRef.current.srcObject = null;
     });
   }, [publicConnection]);
+  // render and on change public connection why? because on render public connection is null when it changes we need to let new listner with new public connection
+
+  const toggleLocalVideoHandler = () => {
+    if (!localVideoStream) {
+      return;
+    }
+    const videoTrack = localVideoStream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+    }
+  };
+
+  const toggleLocalAudioHandler = () => {
+    if (!localVideoStream) {
+      return;
+    }
+    const audioTrack = localVideoStream.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+    }
+  };
 
   return (
     <div className="fixed w-full h-screen  flex justify-center items-center  text-white ">
@@ -139,6 +182,28 @@ const Call = () => {
           className="bg-red-950"
         >
           startcall
+        </button>
+        <button
+          onClick={() => {
+            if (!publicConnection) {
+              return;
+            }
+            socket.current.emit("closeCall");
+
+            localVideoStream.getTracks().forEach((track) => {
+              track.stop();
+            });
+            publicConnection.close();
+            setpublicConnection(null);
+            toggleLocalVideoHandler();
+            if (!remoteRef || !localRef) {
+              return;
+            }
+            remoteRef.current.srcObject = null;
+            localRef.current.srcObject = null;
+          }}
+        >
+          close call
         </button>
         <div>
           <div className="flex justify-end m-4">
@@ -168,8 +233,7 @@ const Call = () => {
 
           <div
             onClick={() => {
-              console.log("video is ready");
-              toggleVideoHandler();
+              toggleLocalVideoHandler();
             }}
             className="flex flex-col justify-center items-center gap-1"
           >
