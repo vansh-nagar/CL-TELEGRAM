@@ -10,6 +10,7 @@ export default {
         ovelayIconColor1: "#488fc9",
         IconNotActive: "#6c7882",
         IconOnHover: "#dcdcdc",
+        TrackOn: "#373a3f",
       },
     },
   },
