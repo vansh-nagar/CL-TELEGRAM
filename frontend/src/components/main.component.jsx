@@ -288,10 +288,25 @@ const Main = () => {
     const connection = new RTCPeerConnection({
       iceServers: [
         {
-          urls: "stun:stun.l.google.com:19302",
+          urls: "stun:stun.relay.metered.ca:80",
         },
         {
           urls: "turn:in.relay.metered.ca:80",
+          username: "bf9e8721a5b488de00b483dd",
+          credential: "ZSOInlfeRumt5+4Z",
+        },
+        {
+          urls: "turn:in.relay.metered.ca:80?transport=tcp",
+          username: "bf9e8721a5b488de00b483dd",
+          credential: "ZSOInlfeRumt5+4Z",
+        },
+        {
+          urls: "turn:in.relay.metered.ca:443",
+          username: "bf9e8721a5b488de00b483dd",
+          credential: "ZSOInlfeRumt5+4Z",
+        },
+        {
+          urls: "turns:in.relay.metered.ca:443?transport=tcp",
           username: "bf9e8721a5b488de00b483dd",
           credential: "ZSOInlfeRumt5+4Z",
         },
