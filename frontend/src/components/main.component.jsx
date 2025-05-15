@@ -291,24 +291,24 @@ const Main = () => {
           urls: "stun:stun.relay.metered.ca:80",
         },
         {
-          urls: "turn:in.relay.metered.ca:80",
-          username: "bf9e8721a5b488de00b483dd",
-          credential: "ZSOInlfeRumt5+4Z",
+          urls: "turn:global.relay.metered.ca:80",
+          username: "18f3711655c3f5e3f66eb51b",
+          credential: "KkGALMmLqzOtAXC8",
         },
         {
-          urls: "turn:in.relay.metered.ca:80?transport=tcp",
-          username: "bf9e8721a5b488de00b483dd",
-          credential: "ZSOInlfeRumt5+4Z",
+          urls: "turn:global.relay.metered.ca:80?transport=tcp",
+          username: "18f3711655c3f5e3f66eb51b",
+          credential: "KkGALMmLqzOtAXC8",
         },
         {
-          urls: "turn:in.relay.metered.ca:443",
-          username: "bf9e8721a5b488de00b483dd",
-          credential: "ZSOInlfeRumt5+4Z",
+          urls: "turn:global.relay.metered.ca:443",
+          username: "18f3711655c3f5e3f66eb51b",
+          credential: "KkGALMmLqzOtAXC8",
         },
         {
-          urls: "turns:in.relay.metered.ca:443?transport=tcp",
-          username: "bf9e8721a5b488de00b483dd",
-          credential: "ZSOInlfeRumt5+4Z",
+          urls: "turns:global.relay.metered.ca:443?transport=tcp",
+          username: "18f3711655c3f5e3f66eb51b",
+          credential: "KkGALMmLqzOtAXC8",
         },
       ],
     });
@@ -425,7 +425,7 @@ const Main = () => {
       ) {
         await PeerConnection?.addIceCandidate(msg.candidate);
       } else {
-        iceCandidateQueue.current.push(msg.candidate);
+        iceCandidateQueue.current?.push(msg.candidate);
         console.log("ice candidate added to queue");
       }
     });
