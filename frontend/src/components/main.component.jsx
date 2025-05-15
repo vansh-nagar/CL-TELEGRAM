@@ -311,6 +311,7 @@ const Main = () => {
           credential: "KkGALMmLqzOtAXC8",
         },
       ],
+      iceTransportPolicy: "all", // or try "relay" for testing
     });
 
     connection.onicecandidate = (e) => {
