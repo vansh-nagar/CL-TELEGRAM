@@ -3,7 +3,6 @@ import Main from "./components/main.component.jsx";
 import RegisterUser from "./components/register.component.jsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoginUser from "./components/login.component.jsx";
-import Call from "./components/call.component.jsx";
 
 function App() {
   return (
@@ -13,7 +12,6 @@ function App() {
         <Route path="/RegisterUser" element={<RegisterUser />} />
 
         <Route path="/main" element={<Main />} />
-        <Route path="/call" element={<Call />} />
       </Routes>
     </BrowserRouter>
   );

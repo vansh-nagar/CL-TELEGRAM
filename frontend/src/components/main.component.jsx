@@ -1,4 +1,3 @@
-import React, { use, useDebugValue } from "react";
 import { useState, useRef, useEffect } from "react";
 import io from "socket.io-client";
 import axios from "axios";
@@ -12,6 +11,10 @@ import {
   RiVideoOnFill,
   RiCloseLine,
   RiArrowLeftLine,
+  RiVideoOffFill,
+  RiMicAiFill,
+  RiMailCloseFill,
+  RiMicOffFill,
 } from "@remixicon/react";
 import gsap from "gsap";
 
@@ -50,6 +53,23 @@ const Main = () => {
   const sideBar = useRef(null); // Sidebar DOM
   const constactDiv = useRef(null); // Contact container
   const messageDiv = useRef(null); // Message container
+
+  /////////////////////////////////////////
+
+  const localRef = useRef(null);
+  const remoteRef = useRef(null);
+  const incomingOffer = useRef(null);
+  const incomingOfferSender = useRef(null);
+  const iceCandidateQueue = useRef([]);
+
+  const [PeerConnection, setPeerConnection] = useState(null);
+  const [LocalStream, setLocalStream] = useState(null);
+  const [videoCallStarted, setvideoCallStarted] = useState(false);
+  const [videoCallArived, setvideoCallArived] = useState(false);
+  const [callAccepted, setcallAccepted] = useState(false);
+
+  const [cameraButton, setcameraButton] = useState(false);
+  const [micButton, setmicButton] = useState(false);
 
   useEffect(() => {
     if (!to) return;
@@ -114,11 +134,13 @@ const Main = () => {
       withCredentials: true,
     });
 
-    socket.current.on("myId", (msg) => {
-      setfrom(msg.senderId);
-    });
+    const currentSocket = socket.current;
 
-    socket.current.on("message", (msg) => {
+    const handleMyId = (msg) => {
+      setfrom(msg.senderId);
+    };
+
+    const handleMessage = (msg) => {
       setmessageArr((prev) => [
         ...prev,
         {
@@ -128,18 +150,14 @@ const Main = () => {
           createdAt: msg.time,
         },
       ]);
-      console.log(msg);
-
       messagesEndRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
         inline: "nearest",
       });
-    });
+    };
 
-    console.log(to);
-
-    socket.current.on("joinedRoomAck", () => {
+    const handleJoinedRoomAck = () => {
       axios
         .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getcontact`, {
           withCredentials: true,
@@ -147,12 +165,14 @@ const Main = () => {
         .then((res) => {
           setContacts(res.data);
         })
-        .catch((err) => {
-          console.log(err.message);
-        });
-    });
+        .catch((err) => console.log(err.message));
+    };
 
-    //get contact
+    currentSocket.on("myId", handleMyId);
+    currentSocket.on("message", handleMessage);
+    currentSocket.on("joinedRoomAck", handleJoinedRoomAck);
+
+    // Initial contact fetch
     axios
       .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getcontact`, {
         withCredentials: true,
@@ -160,17 +180,18 @@ const Main = () => {
       .then((res) => {
         setContacts(res.data);
       })
-      .catch((err) => {
-        console.log(err.message);
-      });
+      .catch((err) => console.log(err.message));
+
+    return () => {
+      currentSocket.off("myId", handleMyId);
+      currentSocket.off("message", handleMessage);
+      currentSocket.off("joinedRoomAck", handleJoinedRoomAck);
+      currentSocket.disconnect(); // ✅ Disconnect socket on unmount
+    };
   }, []);
 
   useEffect(() => {
-    if (!to) {
-      return;
-    }
-
-    //get messages
+    if (!to) return;
 
     axios
       .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getMessages`, {
@@ -180,16 +201,19 @@ const Main = () => {
       .then((res) => {
         setmessageArr(res.data);
       })
-      .catch((err) => {
-        console.log(err.message);
-      });
+      .catch((err) => console.log(err.message));
 
-    socket.current.emit("joinroom", {
+    socket.current?.emit("joinroom", {
       to,
       message: `joined`,
     });
 
     imputBoxRef.current?.focus();
+
+    // ✅ Optional cleanup: leave room if needed
+    return () => {
+      socket.current?.emit("leaveroom", { to });
+    };
   }, [to]);
 
   useEffect(() => {
@@ -241,6 +265,290 @@ const Main = () => {
       });
   };
 
+  /////////////////////////////////////////////////////////////////////////////////////
+
+  const getMedia = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+
+    localRef.current.srcObject = stream;
+    setLocalStream(stream);
+
+    setcameraButton(true);
+    setmicButton(true);
+    return stream;
+  };
+
+  const createConnection = async (
+    ReciverCurrentSocketId,
+    SenderCurrentSocketId
+  ) => {
+    const connection = new RTCPeerConnection({
+      iceServers: [
+        {
+          urls: "stun:stun.l.google.com:19302",
+        },
+        {
+          urls: "turn:in.relay.metered.ca:80",
+          username: "bf9e8721a5b488de00b483dd",
+          credential: "ZSOInlfeRumt5+4Z",
+        },
+      ],
+    });
+
+    connection.onicecandidate = (e) => {
+      console.log("ice candidate send");
+      socket.current.emit("iceCandidate", {
+        candidate: e.candidate,
+        ReciverCurrentSocketId,
+        SenderCurrentSocketId,
+      });
+    };
+
+    connection.ontrack = (e) => {
+      console.log("track came ");
+      remoteRef.current.srcObject = e?.streams[0];
+    };
+
+    return connection;
+  };
+
+  const startCall = async () => {
+    if (!classOverlay) {
+      return;
+    }
+    if (!to) {
+      return;
+    }
+
+    let ReciverCurrentSocketId;
+    let SenderCurrentSocketId;
+    await axios
+      .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getUserStatus`, {
+        params: { to },
+        withCredentials: true,
+      })
+      .then((res) => {
+        ReciverCurrentSocketId = res.data.currentSocketId;
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+    await axios
+      .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getUserStatus`, {
+        params: { to: from },
+        withCredentials: true,
+      })
+      .then((res) => {
+        SenderCurrentSocketId = res.data.currentSocketId;
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+
+    console.log(ReciverCurrentSocketId, SenderCurrentSocketId);
+    incomingOfferSender.current = ReciverCurrentSocketId;
+
+    if (!ReciverCurrentSocketId) {
+      return;
+    }
+
+    setvideoCallStarted(true);
+
+    const stream = await getMedia();
+
+    console.log("whhoooooooooooooooooooooooooooooooooo", stream);
+
+    const lc = await createConnection(
+      ReciverCurrentSocketId,
+      SenderCurrentSocketId
+    );
+    stream.getTracks().forEach((track) => {
+      lc.addTrack(track, stream);
+    });
+
+    const offer = await lc.createOffer();
+    await lc.setLocalDescription(offer);
+
+    setPeerConnection(lc);
+
+    socket.current.emit("offer", {
+      offer,
+      ReciverCurrentSocketId,
+      SenderCurrentSocketId,
+    });
+  };
+
+  useEffect(() => {
+    socket.current.on("offerArrived", async (msg) => {
+      incomingOffer.current = msg.offer;
+      incomingOfferSender.current = msg.SenderCurrentSocketId;
+      setvideoCallArived(true);
+      setclassOverlay(true);
+    });
+
+    socket.current.on("offerAccepted", async (msg) => {
+      console.log("offer accepted ", msg.SenderCurrentSocketId);
+
+      console.log(msg.answer);
+      await PeerConnection?.setRemoteDescription(msg.answer);
+
+      console.log("adding icecandidates");
+      while (iceCandidateQueue.current.length) {
+        const candidate = iceCandidateQueue.current.shift();
+        await PeerConnection?.addIceCandidate(candidate);
+        console.log("Queued ICE candidate added");
+      }
+    });
+
+    socket.current.on("iceCandidate", async (msg) => {
+      if (
+        PeerConnection?.remoteDescription &&
+        PeerConnection?.remoteDescription.type
+      ) {
+        await PeerConnection?.addIceCandidate(msg.candidate);
+      } else {
+        iceCandidateQueue.current.push(msg.candidate);
+        console.log("ice candidate added to queue");
+      }
+    });
+  }, [PeerConnection]);
+
+  useEffect(() => {
+    socket.current.on("callDeclined", () => {
+      Reset();
+    });
+  }, [LocalStream]);
+
+  const Reset = () => {
+    console.log("declini9ng call");
+    setclassOverlay(false);
+    console.log(
+      "locallllllllllllllllllllllllllstreammmmmmmmmmmmm",
+      LocalStream
+    );
+    if (LocalStream) {
+      LocalStream.getTracks().forEach((track) => {
+        track.stop();
+      });
+      setLocalStream(null);
+    }
+
+    if (localRef.current) {
+      localRef.current.srcObject = null;
+    }
+    if (remoteRef.current) {
+      remoteRef.current.srcObject = null;
+    }
+
+    incomingOffer.current = null;
+    incomingOfferSender.current = null;
+    iceCandidateQueue.current = null;
+    // track where not removed fom peer important ✅✅✅✅✅
+    if (PeerConnection) {
+      PeerConnection.getSenders().forEach((sender) => {
+        if (sender.track?.kind === "video") {
+          sender.track.stop();
+          PeerConnection.removeTrack(sender);
+        }
+      });
+      PeerConnection.close();
+      setPeerConnection(null);
+    }
+    setvideoCallStarted(false);
+    setvideoCallArived(false);
+    setcallAccepted(false);
+
+    setcameraButton(false);
+    setmicButton(false);
+  };
+
+  const handleAnswerCall = async (offer) => {
+    if (!incomingOfferSender.current) {
+      return;
+    }
+    if (!from) {
+      return;
+    }
+    let SenderCurrentSocketId;
+    await axios
+      .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getUserStatus`, {
+        params: { to: from },
+        withCredentials: true,
+      })
+      .then((res) => {
+        console.log(res.data.currentSocketId);
+        SenderCurrentSocketId = res.data.currentSocketId;
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+
+    if (!SenderCurrentSocketId) {
+      return;
+    }
+
+    console.log("contructing answering the call");
+    const stream = await getMedia();
+
+    //reciver sender
+    const rc = await createConnection(
+      incomingOfferSender.current,
+      SenderCurrentSocketId
+    );
+
+    stream.getTracks().forEach((track) => {
+      rc.addTrack(track, stream);
+    });
+
+    await rc.setRemoteDescription(offer);
+    const answer = await rc.createAnswer();
+    await rc.setLocalDescription(answer);
+
+    setPeerConnection(rc);
+    console.log("answering offer");
+    socket.current.emit("answerOffer", {
+      answer,
+      incomingOfferSender: incomingOfferSender.current,
+      SenderCurrentSocketId,
+    });
+  };
+
+  const handleDeclineCall = async () => {
+    console.log("incomingOfferSender", incomingOfferSender);
+    socket.current.emit("DeclineCall", {
+      incomingOfferSender: incomingOfferSender.current,
+    });
+    Reset();
+  };
+
+  const handleToggleVideo = async () => {
+    const videoTrack = LocalStream.getVideoTracks()[0];
+    console.log(LocalStream);
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      if (cameraButton) {
+        setcameraButton(false);
+      } else {
+        setcameraButton(true);
+      }
+    }
+  };
+  const handleToggleAudio = () => {
+    console.log("toggle video");
+    console.log(LocalStream);
+    const audioTrack = LocalStream.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+    }
+    if (micButton) {
+      setmicButton(false);
+    } else {
+      setmicButton(true);
+    }
+  };
   return (
     <div className="flex flex-row bg-gray-500 ">
       <div
@@ -311,7 +619,7 @@ const Main = () => {
                       });
                       if (window.innerWidth < 640) {
                         constactDiv.current.style.display = "none";
-                        messageDiv.current.style.display = "flex";
+                        messageDiv.current.style.display = "inline";
                       }
                     }}
                   >
@@ -349,8 +657,6 @@ const Main = () => {
                       setreciverUserName(user.contact.username);
                       setHideMessages(true);
                       setrecieverPfp(user.contact.avatar);
-
-                      console.log(user);
 
                       gsap.to(".closeButton", {
                         rotate: 0,
@@ -438,8 +744,9 @@ const Main = () => {
               <RiMore2Fill className=" hover:text-IconOnHover transition-all duration-150" />
             </div>
           </div>
+
           <div className="textBoxColor flex flex-col  text-white h-[calc(100%-50px-56px)] px-3 overflow-y-auto scroll-auto p-2">
-            {messageArr.map((msg, index) => {
+            {messageArr?.map((msg, index) => {
               if (msg.sender === from) {
                 return (
                   <div key={index} className=" flex justify-end">
@@ -545,64 +852,190 @@ const Main = () => {
         </div>
       </div>
 
-      {classOverlay ? (
+      {classOverlay && (
         <div className="fixed w-full h-screen  flex justify-center items-center  text-white ">
-          <div className="absolute w-2/4 h-3/4  bg-overlay  flex  flex-col justify-between rounded-md max-sm:w-[90%]">
-            <div>
-              {" "}
-              <div className="flex justify-end m-4">
-                <RiCloseFill
-                  onClick={() => {
-                    setclassOverlay(false);
-                  }}
-                  className="text-gray-500 cursor-pointer hover:text-gray-300  w-6 h-6 "
-                />
-              </div>
-              <div className="mt-[6vw] px-7  flex justify-center flex-col items-center gap-6   ">
-                <div className="w-[140px] h-[140px]">
-                  <img
-                    src={recieverPfp}
-                    className="rounded-full w-full h-full  object-cover"
+          <div className=" relative w-2/4 h-3/4  bg-overlay  flex  flex-col justify-between rounded-md max-sm:w-[90%]">
+            {videoCallStarted ? (
+              <video
+                ref={remoteRef}
+                autoPlay
+                playsInline
+                className="rounded-sm   pointer-events-none    scale-x-[-1] h-full  w-full absolute"
+              ></video>
+            ) : (
+              <div>
+                <div className="absolute right-0 top-0 m-4">
+                  <RiCloseFill
+                    onClick={() => {
+                      setclassOverlay(false);
+                    }}
+                    className="text-gray-500 cursor-pointer hover:text-gray-300  w-6 h-6 "
                   />
                 </div>
+                <div className="mt-[6vw] px-7  flex justify-center flex-col items-center gap-6   ">
+                  <div className="w-[140px] h-[140px]">
+                    <img
+                      src={recieverPfp || null}
+                      className="rounded-full w-full h-full  object-cover"
+                    />
+                  </div>
 
-                <div className="text-[23px]">{reciverUserName}</div>
-                <div className="w-[40%] max-sm:w-[80%] text-center text-sm -mt-3 text-gray-400">
-                  Click on the Camera icon if you want to start a video call.
+                  <div className="text-[23px]">{reciverUserName}</div>
+                  <div className="w-[40%] max-sm:w-[80%] text-center text-sm -mt-3 text-gray-400">
+                    Click on the Camera icon if you want to start a video call.
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/*        */}
-            <div className="flex  flex-row justify-center gap-5 mb-6  ">
-              <div className="flex flex-col justify-center items-center gap-1">
-                <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
-                  <RiVideoOnFill className="" />
-                </div>
-                <div className="text-xs text-gray-300 ">Start Video</div>
-              </div>
-              <div className="flex flex-col justify-center items-center gap-1">
+            <div className="flex  flex-row justify-center gap-5 mb-6 absolute bottom-0 left-1/2 -translate-x-1/2">
+              {videoCallStarted || videoCallArived ? null : (
                 <div
                   onClick={() => {
-                    setclassOverlay(false);
+                    if (videoCallStarted) {
+                      return;
+                    }
+                    startCall();
                   }}
-                  className="w-12 h-12 flex justify-center items-center rounded-full bg-white"
+                  className="flex flex-col justify-center items-center gap-1"
                 >
-                  <RiCloseLine className="text-black" />
+                  <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
+                    <RiVideoOnFill className="" />
+                  </div>
+                  <div className="text-xs text-gray-300  text-nowrap">
+                    Start Video
+                  </div>
                 </div>
-                <div className="text-xs text-gray-300">Cencel</div>
-              </div>
-              <div className="flex flex-col justify-center items-center gap-1">
-                <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
-                  <RiPhoneFill />
+              )}
+              {videoCallStarted || videoCallArived ? (
+                <div
+                  onClick={() => {
+                    handleToggleVideo();
+                  }}
+                  className="flex flex-col justify-center items-center gap-1"
+                >
+                  <div
+                    className={`w-12 h-12 flex justify-center items-center rounded-full  bg-white   ${
+                      cameraButton
+                        ? "bg-opacity-10 "
+                        : "bg-opacity-100 text-black"
+                    }`}
+                  >
+                    {cameraButton ? (
+                      <RiVideoOnFill className="" />
+                    ) : (
+                      <RiVideoOffFill className="" />
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-300  text-nowrap">
+                    {cameraButton ? "Stop Video" : "Start Video"}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-300">Start call</div>
-              </div>
+              ) : null}
+              {videoCallStarted || videoCallArived ? null : (
+                <div className="flex flex-col justify-center items-center gap-1">
+                  <div
+                    onClick={() => {
+                      setclassOverlay(false);
+                    }}
+                    className="w-12 h-12 flex justify-center items-center rounded-full bg-white"
+                  >
+                    <RiCloseLine className="text-black" />
+                  </div>
+                  <div className="text-xs text-gray-300  text-nowrap">
+                    Cencel
+                  </div>
+                </div>
+              )}
+              {videoCallStarted || videoCallArived ? null : (
+                <div className="flex flex-col justify-center items-center gap-1">
+                  <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1">
+                    <RiPhoneFill />
+                  </div>
+                  <div className="text-xs text-gray-300  text-nowrap">
+                    Not W
+                  </div>
+                </div>
+              )}
+              {videoCallStarted ? (
+                <div
+                  onClick={() => {
+                    handleDeclineCall();
+                  }}
+                  className="flex flex-col justify-center items-center gap-1"
+                >
+                  <div className="w-12 h-12 flex justify-center items-center rounded-full bg-red-400">
+                    <RiPhoneFill className=" rotate-[135deg]" />
+                  </div>
+                  <div className="text-xs text-gray-300  text-nowrap">
+                    End Call
+                  </div>
+                </div>
+              ) : null}
+              {videoCallStarted || videoCallArived ? (
+                <div
+                  onClick={() => {
+                    handleToggleAudio();
+                  }}
+                  className="flex flex-col justify-center items-center gap-1 "
+                >
+                  <div
+                    className={`w-12 h-12 flex justify-center items-center rounded-full bg-white  ${
+                      micButton ? "bg-opacity-10" : "bg-opacity-100 text-black"
+                    }`}
+                  >
+                    {micButton ? <RiMicAiFill /> : <RiMicOffFill />}
+                  </div>
+                  <div className="text-xs text-gray-300  text-nowrap">
+                    {micButton ? "Mute" : "Un-Mute"}
+                  </div>
+                </div>
+              ) : null}
+              {videoCallArived ? (
+                <div
+                  onClick={() => {
+                    handleAnswerCall(incomingOffer.current);
+
+                    setvideoCallArived(false);
+                    setcallAccepted(true);
+                    setvideoCallStarted(true);
+                  }}
+                  className="flex flex-col justify-center items-center gap-1 "
+                >
+                  <div className="w-12 h-12 flex justify-center items-center rounded-full bg-ovelayIconColor1 ">
+                    <RiPhoneFill />
+                  </div>
+                  <div className="text-xs text-gray-300  text-nowrap">
+                    Accept
+                  </div>
+                </div>
+              ) : null}
+              {videoCallArived ? (
+                <div
+                  onClick={() => {
+                    handleDeclineCall();
+                  }}
+                  className="flex flex-col justify-center items-center gap-1 "
+                >
+                  <div className="w-12 h-12 flex justify-center items-center rounded-full bg-red-400 ">
+                    <RiPhoneFill className=" rotate-[135deg]" />
+                  </div>
+                  <div className="text-xs text-gray-300 text-nowrap">
+                    Decline
+                  </div>
+                </div>
+              ) : null}
             </div>
+
+            <video
+              ref={localRef}
+              muted
+              autoPlay
+              className=" rounded-sm   w-32 scale-x-[-1] absolute right-3 bottom-3 max-sm:bottom-32 max-md:bottom-32 "
+            ></video>
           </div>
         </div>
-      ) : (
-        ""
       )}
     </div>
   );

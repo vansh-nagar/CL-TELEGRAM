@@ -181,22 +181,33 @@ const setUpSocketIo = (server) => {
     });
 
     client.on("iceCandidate", (msg) => {
-      console.log("ice candidate", msg.candidate);
-      client.broadcast.emit("iceCandidate", {
+      client.to(msg.ReciverCurrentSocketId).emit("iceCandidate", {
         candidate: msg.candidate,
+        SenderCurrentSocketId: msg.SenderCurrentSocketId,
       });
     });
+
     client.on("offer", (msg) => {
-      client.broadcast.emit("offerArrived", { offer: msg.offer });
+      console.log("offer arrived on server");
+      client.to(msg.ReciverCurrentSocketId).emit("offerArrived", {
+        offer: msg.offer,
+        SenderCurrentSocketId: msg.SenderCurrentSocketId,
+      });
     });
 
     client.on("answerOffer", (msg) => {
-      client.broadcast.emit("offerAccepted", { answer: msg.answer });
+      console.log(
+        "sending ansdwcccwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+        msg.SenderCurrentSocketId
+      );
+      client.to(msg.incomingOfferSender).emit("offerAccepted", {
+        answer: msg.answer,
+        SenderCurrentSocketId: msg.SenderCurrentSocketId,
+      });
     });
 
-    client.on("closeCall", () => {
-      console.log("closing call");
-      client.broadcast.emit("callClosed");
+    client.on("DeclineCall", (msg) => {
+      client.to(msg.incomingOfferSender).emit("callDeclined");
     });
 
     client.on("disconnect", async () => {
