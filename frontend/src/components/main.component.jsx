@@ -833,7 +833,7 @@ const Main = () => {
                   <div key={index} className="flex justify-start">
                     <div className="reciverColor max-w-[30vw]  flex flex-row gap-4 rounded-full py-1 px-3 m-[1.1px]">
                       <div className="truncate">{msg.message}</div>
-                      <div className="RecivertimerColor text-[13px] translate-y-1.5">
+                      <div className="RecivertimerColor text-[13px] translate-y-1.5 text-nowrap">
                         {new Date(msg.createdAt).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
