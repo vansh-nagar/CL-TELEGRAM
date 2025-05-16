@@ -17,6 +17,10 @@ import {
   RiMicOffFill,
 } from "@remixicon/react";
 import gsap from "gsap";
+import telegramRingtone from "../elements/telegramRingtone.mp3";
+import callAcceptedSound from "../elements/callAcceptedSound.mp3";
+import endcallSound from "../elements/enccallSound.mp3";
+import callingSound from "../elements/callingSound.mp3";
 
 const Main = () => {
   //message
@@ -70,6 +74,12 @@ const Main = () => {
 
   const [cameraButton, setcameraButton] = useState(false);
   const [micButton, setmicButton] = useState(false);
+
+  /////////././//////////////./././////////././/
+  const telegramRingtoneRef = useRef(null);
+  const callAcceptedSoundRef = useRef(null);
+  const callEndedSoundRef = useRef(null);
+  const callingSoundRef = useRef(null);
 
   useEffect(() => {
     if (!to) return;
@@ -311,7 +321,6 @@ const Main = () => {
           credential: "KkGALMmLqzOtAXC8",
         },
       ],
-      iceTransportPolicy: "relay", // or try "relay" for testing
     });
 
     connection.onicecandidate = (e) => {
@@ -332,6 +341,7 @@ const Main = () => {
   };
 
   const startCall = async () => {
+    callingSoundRef.current.play();
     if (!classOverlay) {
       return;
     }
@@ -364,6 +374,20 @@ const Main = () => {
         console.log(err);
       });
 
+    let senderData;
+    await axios
+      .get(`${import.meta.env.VITE_BAKCEND_BASEURL}/getUserDetails`, {
+        params: { input: from },
+
+        withCredentials: true,
+      })
+      .then((res) => {
+        senderData = res.data;
+      })
+      .catch((err) => {
+        console.log(err.message);
+      });
+
     console.log(ReciverCurrentSocketId, SenderCurrentSocketId);
     incomingOfferSender.current = ReciverCurrentSocketId;
 
@@ -394,6 +418,8 @@ const Main = () => {
       offer,
       ReciverCurrentSocketId,
       SenderCurrentSocketId,
+      senderpfp: senderData.avatar,
+      senderName: senderData.username,
     });
   };
 
@@ -403,27 +429,31 @@ const Main = () => {
       incomingOfferSender.current = msg.SenderCurrentSocketId;
       setvideoCallArived(true);
       setclassOverlay(true);
+      console.log(
+        "pfpppppppppppppppfdvdsbvdhusvbdskhvbdksbvdkh",
+        msg.senderpfp
+      );
+      setrecieverPfp(msg.senderpfp);
+      setreciverUserName(msg.senderName);
+      telegramRingtoneRef.current.play();
     });
 
     socket.current.on("offerAccepted", async (msg) => {
       console.log("offer accepted ", msg.SenderCurrentSocketId);
+      callingSoundRef.current.pause();
 
       console.log(msg.answer);
       await PeerConnection?.current.setRemoteDescription(msg.answer);
 
-      console.log("adding icecandidates");
       while (iceCandidateQueue.current.length) {
         const candidate = iceCandidateQueue.current.shift();
         await PeerConnection?.current.addIceCandidate(candidate);
-        console.log("Queued ICE candidate added");
       }
     });
 
     socket.current.on("iceCandidate", async (msg) => {
-      if (
-        PeerConnection?.current.remoteDescription &&
-        PeerConnection?.current.remoteDescription.type
-      ) {
+      console.log("peer connection", PeerConnection.current);
+      if (PeerConnection?.current) {
         await PeerConnection?.current.addIceCandidate(msg.candidate);
       } else {
         iceCandidateQueue.current?.push(msg.candidate);
@@ -439,6 +469,12 @@ const Main = () => {
   }, [LocalStream]);
 
   const Reset = () => {
+    telegramRingtoneRef.current.pause();
+    callEndedSoundRef.current.play();
+
+    callAcceptedSoundRef.current.pause();
+    callingSoundRef.current.pause();
+
     console.log("declini9ng call");
     setclassOverlay(false);
     console.log(
@@ -482,6 +518,8 @@ const Main = () => {
   };
 
   const handleAnswerCall = async (offer) => {
+    telegramRingtoneRef.current.pause();
+    callAcceptedSoundRef.current.play();
     if (!incomingOfferSender.current) {
       return;
     }
@@ -531,11 +569,12 @@ const Main = () => {
       SenderCurrentSocketId,
     });
 
-    console.log("addi✅✅✅✅✅✅ng icecandidates");
-      while (iceCandidateQueue.current.length) {
-        const candidate = iceCandidateQueue.current.shift();
-        await PeerConnection?.current.addIceCandidate(candidate);
-        console.log("Queued ICE candidate added");
+    console.log("adding icecandidates");
+    while (iceCandidateQueue.current.length) {
+      const candidate = iceCandidateQueue.current.shift();
+      await PeerConnection?.current.addIceCandidate(candidate);
+      console.log("Queued ICE candidate added");
+    }
   };
 
   const handleDeclineCall = async () => {
@@ -543,6 +582,7 @@ const Main = () => {
     socket.current.emit("DeclineCall", {
       incomingOfferSender: incomingOfferSender.current,
     });
+
     Reset();
   };
 
@@ -573,6 +613,10 @@ const Main = () => {
   };
   return (
     <div className="flex flex-row bg-gray-500 ">
+      <audio ref={telegramRingtoneRef} src={telegramRingtone} loop></audio>
+      <audio src={callAcceptedSound} ref={callAcceptedSoundRef}></audio>
+      <audio src={endcallSound} ref={callEndedSoundRef}></audio>
+      <audio src={callingSound} ref={callingSoundRef} loop></audio>
       <div
         ref={constactDiv}
         className="inboxUsers max-sm:flex-col  h-screen backgroundColor text-white max-sm:w-full  border-r border-black"

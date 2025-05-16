@@ -38,4 +38,18 @@ const getContacts = asyncHandler(async (req, res) => {
   res.status(200).json(data);
 });
 
-export { getUser, getContacts };
+const getUserDetails = asyncHandler(async (req, res) => {
+  console.log(req.query.input);
+  const input = req.query.input;
+  if (!input) {
+    throw new ApiError(400, "input is req to fetch user data");
+  }
+  const user = await User.findById(input);
+  if (!user) {
+    throw new ApiError(500, "not able to fetch data");
+  }
+
+  res.status(200).json(user);
+});
+
+export { getUser, getContacts, getUserDetails };

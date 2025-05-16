@@ -192,6 +192,8 @@ const setUpSocketIo = (server) => {
       client.to(msg.ReciverCurrentSocketId).emit("offerArrived", {
         offer: msg.offer,
         SenderCurrentSocketId: msg.SenderCurrentSocketId,
+        senderpfp: msg.senderpfp,
+        senderName: msg.senderName,
       });
     });
 
