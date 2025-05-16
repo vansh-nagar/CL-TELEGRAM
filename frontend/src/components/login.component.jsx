@@ -8,8 +8,19 @@ const LoginUser = () => {
 
   const [username, setusername] = useState("");
   const [password, setpassword] = useState("");
+  const [isLoading, setisLoading] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="spinner-wrapper">
+        <div className="spinner"></div>
+      </div>
+    );
+  }
 
   const SignUp = (e) => {
+    setisLoading(true);
+
     e.preventDefault();
 
     axios
@@ -25,11 +36,14 @@ const LoginUser = () => {
       )
       .then((res) => {
         if (res.data.statusCode === 200) {
+          setisLoading(false);
+
           navigate("/Main");
         }
       })
       .catch((err) => {
         console.log(err.response);
+        setisLoading(false);
       });
   };
 

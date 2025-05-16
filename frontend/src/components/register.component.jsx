@@ -10,8 +10,18 @@ const RegisterUser = () => {
   const [password, setpassword] = useState("");
   const [avatar, setavatar] = useState(null);
   const [error, seterror] = useState("");
+  const [isLoading, setisLoading] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="spinner-wrapper">
+        <div className="spinner"></div>
+      </div>
+    );
+  }
 
   const SignUp = (e) => {
+    setisLoading(true);
     e.preventDefault();
 
     const formData = new FormData();
@@ -27,12 +37,14 @@ const RegisterUser = () => {
       .then((res) => {
         console.log(res.data.statusCode);
         if (res.data.statusCode === 201) {
+          setisLoading(false);
           navigate("/main");
         }
       })
       .catch((err) => {
         console.log(err.response.data.message);
         seterror(err.response.data.message);
+        setisLoading(false);
       });
   };
 
