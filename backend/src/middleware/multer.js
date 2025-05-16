@@ -1,6 +1,6 @@
 import multer from "multer";
 
-const storage = await multer.diskStorage({
+const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     //starts from root directory
     cb(null, "./public/temp");

@@ -29,11 +29,9 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError("Image not uploaded", 400);
   }
 
-  [(username, password)].some((field) => {
-    if (field?.trim() === "") {
-      throw new ApiError("All fields are required", 400);
-    }
-  });
+  if (!username?.trim() || !password?.trim()) {
+    throw new ApiError("All fields are required", 400);
+  }
 
   const findUser = await User.findOne({ username });
   if (findUser) {
