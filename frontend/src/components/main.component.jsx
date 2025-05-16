@@ -62,7 +62,7 @@ const Main = () => {
   const incomingOfferSender = useRef(null);
   const iceCandidateQueue = useRef([]);
 
-  const [PeerConnection, setPeerConnection] = useState(null);
+  const PeerConnection = useRef(null);
   const [LocalStream, setLocalStream] = useState(null);
   const [videoCallStarted, setvideoCallStarted] = useState(false);
   const [videoCallArived, setvideoCallArived] = useState(false);
@@ -388,7 +388,7 @@ const Main = () => {
     const offer = await lc.createOffer();
     await lc.setLocalDescription(offer);
 
-    setPeerConnection(lc);
+    PeerConnection.current = lc;
 
     socket.current.emit("offer", {
       offer,
@@ -409,28 +409,28 @@ const Main = () => {
       console.log("offer accepted ", msg.SenderCurrentSocketId);
 
       console.log(msg.answer);
-      await PeerConnection?.setRemoteDescription(msg.answer);
+      await PeerConnection?.current.setRemoteDescription(msg.answer);
 
       console.log("adding icecandidates");
       while (iceCandidateQueue.current.length) {
         const candidate = iceCandidateQueue.current.shift();
-        await PeerConnection?.addIceCandidate(candidate);
+        await PeerConnection?.current.addIceCandidate(candidate);
         console.log("Queued ICE candidate added");
       }
     });
 
     socket.current.on("iceCandidate", async (msg) => {
       if (
-        PeerConnection?.remoteDescription &&
-        PeerConnection?.remoteDescription.type
+        PeerConnection?.current.remoteDescription &&
+        PeerConnection?.current.remoteDescription.type
       ) {
-        await PeerConnection?.addIceCandidate(msg.candidate);
+        await PeerConnection?.current.addIceCandidate(msg.candidate);
       } else {
         iceCandidateQueue.current?.push(msg.candidate);
         console.log("ice candidate added to queue");
       }
     });
-  }, [PeerConnection]);
+  });
 
   useEffect(() => {
     socket.current.on("callDeclined", () => {
@@ -463,15 +463,15 @@ const Main = () => {
     incomingOfferSender.current = null;
     iceCandidateQueue.current = [];
     // track where not removed fom peer important ✅✅✅✅✅
-    if (PeerConnection) {
-      PeerConnection.getSenders().forEach((sender) => {
+    if (PeerConnection.current) {
+      PeerConnection.current.getSenders().forEach((sender) => {
         if (sender.track?.kind === "video") {
           sender.track.stop();
-          PeerConnection.removeTrack(sender);
+          PeerConnection.current.removeTrack(sender);
         }
       });
-      PeerConnection.close();
-      setPeerConnection(null);
+      PeerConnection.current.close();
+      PeerConnection.current = null;
     }
     setvideoCallStarted(false);
     setvideoCallArived(false);
@@ -523,13 +523,19 @@ const Main = () => {
     const answer = await rc.createAnswer();
     await rc.setLocalDescription(answer);
 
-    setPeerConnection(rc);
+    PeerConnection.current = rc;
     console.log("answering offer");
     socket.current.emit("answerOffer", {
       answer,
       incomingOfferSender: incomingOfferSender.current,
       SenderCurrentSocketId,
     });
+
+    console.log("addi✅✅✅✅✅✅ng icecandidates");
+      while (iceCandidateQueue.current.length) {
+        const candidate = iceCandidateQueue.current.shift();
+        await PeerConnection?.current.addIceCandidate(candidate);
+        console.log("Queued ICE candidate added");
   };
 
   const handleDeclineCall = async () => {
