@@ -311,7 +311,7 @@ const Main = () => {
           credential: "KkGALMmLqzOtAXC8",
         },
       ],
-      iceTransportPolicy: "all", // or try "relay" for testing
+      iceTransportPolicy: "relay", // or try "relay" for testing
     });
 
     connection.onicecandidate = (e) => {
@@ -461,7 +461,7 @@ const Main = () => {
 
     incomingOffer.current = null;
     incomingOfferSender.current = null;
-    iceCandidateQueue.current = null;
+    iceCandidateQueue.current = [];
     // track where not removed fom peer important ✅✅✅✅✅
     if (PeerConnection) {
       PeerConnection.getSenders().forEach((sender) => {
