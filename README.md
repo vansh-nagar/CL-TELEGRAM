@@ -40,8 +40,8 @@ A full-stack real-time chat application with video calling functionality, inspir
 git clone https://github.com/vansh-nagar/CL-TELEGRAM.git
 cd CL-TELEGRAM
 ```
+## Backend setup
 ```
-##backend seup
 cd backend
 npm install
 npm run dev
@@ -49,6 +49,7 @@ npm run dev
 
 will add env
 
+## Frontend setup
 ```
 cd ../frontend
 npm install
@@ -58,28 +59,28 @@ npm start
 
 🛣️ API Routes in backend/routes/
 📁 authRoutes.js
-Handles user authentication.
+- Handles user authentication.
 
 Method	Route	Description
-POST	/api/auth/register	Register a new user
-POST	/api/auth/login	Login existing user
+- POST	/api/auth/register	Register a new user
+- POST	/api/auth/login	Login existing user
 
 📁 messageRoute.js
-Manages message sending and retrieval.
+- Manages message sending and retrieval.
 
 Method	Route	Description
-POST	/api/message	Send a new message
-GET	/api/message/:id	Get all messages for a user/chat
+- POST	/api/message	Send a new message
+- GET	/api/message/:id	Get all messages for a user/chat
 
 📁 userRoute.js
-Handles user-related actions.
+- Handles user-related actions.
 
 Method	Route	Description
-GET	/api/user	Get all users
-GET	/api/user/:id	Get a single user by ID
+- GET	/api/user	Get all users
+- GET	/api/user/:id	Get a single user by ID
 
 ✅ Summary of Backend Entry
-All routes are prefixed under /api/
+- All routes are prefixed under /api/
 
 You're using Express.Router() modules cleanly for each domain (auth, user, message)
 
